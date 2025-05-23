@@ -1,0 +1,694 @@
+openapi: 3.0.0
+info:
+  title: Utara Backend API
+  description: API for managing rooms, room requests, and food passes
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:61554
+    description: Development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [SUPER_ADMIN, STAFF, USER]
+        is_important:
+          type: boolean
+        phone_number:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+        - phone_number
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+        phone_number:
+          type: string
+        role:
+          type: string
+          enum: [SUPER_ADMIN, STAFF, USER]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        room_number:
+          type: string
+        floor:
+          type: integer
+        type:
+          type: string
+          enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+        beds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bed'
+        has_geyser:
+          type: boolean
+        has_ac:
+          type: boolean
+        has_sofa_set:
+          type: boolean
+        sofa_set_quantity:
+          type: integer
+        extra_amenities:
+          type: string
+        is_visible:
+          type: boolean
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomImage'
+        is_occupied:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Bed:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [SINGLE, DOUBLE, EXTRA_BED]
+        quantity:
+          type: integer
+
+    RoomImage:
+      type: object
+      properties:
+        url:
+          type: string
+        description:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+
+    RoomRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        user_id:
+          type: string
+          format: objectId
+        check_in_date:
+          type: string
+          format: date-time
+        check_out_date:
+          type: string
+          format: date-time
+        number_of_people:
+          type: integer
+        preferred_type:
+          type: string
+          enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+        special_requests:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        processed_by:
+          type: string
+          format: objectId
+        processed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FoodPass:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        user_id:
+          type: string
+          format: objectId
+        member_name:
+          type: string
+        meal_type:
+          type: string
+          enum: [BREAKFAST, LUNCH, DINNER]
+        date:
+          type: string
+          format: date-time
+        qr_code:
+          type: string
+        is_used:
+          type: boolean
+        used_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: objectId
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+paths:
+  /auth/signup:
+    post:
+      summary: Register a new user
+      description: |
+        - Regular users can only create USER accounts
+        - SUPER_ADMIN can create any type of account
+        - STAFF cannot create new accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /profile:
+    get:
+      summary: Get user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms:
+    post:
+      summary: Create a new room
+      description: Only SUPER_ADMIN and STAFF can create rooms
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '201':
+          description: Room created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get all rooms
+      description: |
+        - SUPER_ADMIN and STAFF can see all rooms
+        - Regular users can only see visible rooms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: floor
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+        - name: is_visible
+          in: query
+          schema:
+            type: boolean
+        - name: is_occupied
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+
+  /rooms/stats:
+    get:
+      summary: Get room statistics
+      description: Only SUPER_ADMIN and STAFF can access room statistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Room statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_rooms:
+                    type: integer
+                  occupied_rooms:
+                    type: integer
+                  available_rooms:
+                    type: integer
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/{id}:
+    get:
+      summary: Get room by ID
+      description: |
+        - SUPER_ADMIN and STAFF can see any room
+        - Regular users can only see visible rooms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update room
+      description: Only SUPER_ADMIN and STAFF can update rooms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '200':
+          description: Room updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /room-requests:
+    post:
+      summary: Create a room request
+      description: Any authenticated user can create a room request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomRequest'
+      responses:
+        '201':
+          description: Room request created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRequest'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get room requests
+      description: |
+        - SUPER_ADMIN and STAFF can see all requests
+        - Regular users can only see their own requests
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: user_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of room requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomRequest'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /room-requests/{id}/process:
+    put:
+      summary: Process a room request
+      description: Only SUPER_ADMIN and STAFF can process room requests
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [APPROVED, REJECTED]
+                room_id:
+                  type: string
+                  format: objectId
+      responses:
+        '200':
+          description: Request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRequest'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/generate:
+    post:
+      summary: Generate food passes
+      description: Only SUPER_ADMIN and STAFF can generate food passes
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - member_names
+                - start_date
+                - end_date
+              properties:
+                user_id:
+                  type: string
+                  format: objectId
+                member_names:
+                  type: array
+                  items:
+                    type: string
+                start_date:
+                  type: string
+                  format: date-time
+                end_date:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Food passes generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  total_passes:
+                    type: integer
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/user/{user_id}:
+    get:
+      summary: Get user's food passes
+      description: |
+        - SUPER_ADMIN and STAFF can see any user's passes
+        - Regular users can only see their own passes
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: is_used
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of food passes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FoodPass'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/scan:
+    post:
+      summary: Scan a food pass
+      description: Only SUPER_ADMIN and STAFF can scan food passes
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pass_id
+              properties:
+                pass_id:
+                  type: string
+                  format: objectId
+      responses:
+        '200':
+          description: Food pass scanned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid pass or already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error' 
