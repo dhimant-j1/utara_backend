@@ -34,6 +34,8 @@ func SetupRoutes(r *gin.Engine) {
 	protected := r.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	{
+		protected.POST("/createUser", handlers.CreateUser)
+
 		protected.GET("/profile", handlers.GetProfile)
 
 		// Room routes
