@@ -98,7 +98,7 @@ func GetRooms(c *gin.Context) {
 	}
 	defer cursor.Close(context.Background())
 
-	var rooms []models.Room
+	var rooms = []models.Room{}
 	if err := cursor.All(context.Background(), &rooms); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding rooms"})
 		return

@@ -49,6 +49,7 @@ func CreateRoomRequest(c *gin.Context) {
 }
 
 // GetRoomRequests returns all room requests with optional filters
+// GetRoomRequests returns all room requests with optional filters and room details
 func GetRoomRequests(c *gin.Context) {
 	filter := bson.M{}
 
@@ -91,7 +92,47 @@ func GetRoomRequests(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, requests)
+	// Create a response struct to include room details
+	type RoomRequestWithDetails struct {
+		models.RoomRequest
+		Room       *models.Room           `json:"room,omitempty"`
+		Assignment *models.RoomAssignment `json:"assignment,omitempty"`
+	}
+
+	var requestsWithDetails []RoomRequestWithDetails
+
+	// For each request, find its assignment and room (if any)
+	for _, request := range requests {
+		requestWithDetails := RoomRequestWithDetails{
+			RoomRequest: request,
+		}
+
+		// Find assignment for this request
+		var assignment models.RoomAssignment
+		err := config.DB.Collection("room_assignments").FindOne(
+			context.Background(),
+			bson.M{"request_id": request.ID},
+		).Decode(&assignment)
+
+		if err == nil {
+			requestWithDetails.Assignment = &assignment
+
+			// If assignment exists, get room details
+			var room models.Room
+			err = config.DB.Collection("rooms").FindOne(
+				context.Background(),
+				bson.M{"_id": assignment.RoomID},
+			).Decode(&room)
+
+			if err == nil {
+				requestWithDetails.Room = &room
+			}
+		}
+
+		requestsWithDetails = append(requestsWithDetails, requestWithDetails)
+	}
+
+	c.JSON(http.StatusOK, requestsWithDetails)
 }
 
 // ProcessRoomRequest processes (approve/reject) a room request

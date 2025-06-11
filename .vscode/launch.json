@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "type": "go",
+            "name": "debug main.go",
+            "request": "launch",
+            "mode": "auto",
+            "args": [],
+            "program": "c:\\Users\\bhara\\Code\\utara_backend\\main.go"
+        }
+    ]
+}
