@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -51,19 +50,17 @@ func GenerateFoodPasses(c *gin.Context) {
 
 		for _, memberName := range req.MemberNames {
 			for _, mealType := range mealTypes {
+				id := primitive.NewObjectID()
 				// Generate QR code data
-				qrData := fmt.Sprintf("FOOD_PASS_%s_%s_%s",
-					currentDate.Format("2006-01-02"),
-					mealType,
-					memberName,
-				)
-				qrCode, err := utils.GenerateQRCode(qrData)
+
+				qrCode, err := utils.GenerateQRCode(id.Hex())
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating QR code"})
 					return
 				}
 
 				pass := models.FoodPass{
+					ID:         id,
 					UserID:     req.UserID,
 					MemberName: memberName,
 					MealType:   mealType,
