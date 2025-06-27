@@ -13,8 +13,8 @@ import (
 
 func SetupRoutes(r *gin.Engine) {
 
-	// origin := "https://utara-app.web.app"
-	origin := "https://127.0.0.1"
+	origin := "https://utara-app.web.app"
+	// origin := "https://127.0.0.1"
 	// CORS config
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{origin},
