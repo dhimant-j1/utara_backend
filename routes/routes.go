@@ -14,7 +14,7 @@ import (
 func SetupRoutes(r *gin.Engine) {
 
 	origin := "https://utara-app.web.app"
-	// origin := "https://127.0.0.1"
+	//origin := "http://localhost:52369" // Change this to your frontend URL
 	// CORS config
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{origin},
@@ -39,6 +39,7 @@ func SetupRoutes(r *gin.Engine) {
 		protected.POST("/createUser", handlers.CreateUser)
 
 		protected.GET("/profile", handlers.GetProfile)
+		protected.GET("/users", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetAllUsers)
 
 		// Room routes
 		rooms := protected.Group("/rooms")
