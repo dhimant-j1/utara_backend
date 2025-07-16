@@ -50,3 +50,12 @@ type UpdateUserRequest struct {
 	Role        *UserRole `json:"role"`
 	IsImportant *bool     `json:"is_important"`
 }
+
+type UserModuleAccess struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID    primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Role      string             `bson:"role" json:"role"`
+	Modules   map[string]bool    `bson:"modules" json:"modules"`
+	CreatedAt time.Time          `bson:"created" json:"created"`
+	UpdatedAt time.Time          `bson:"updated" json:"updated"`
+}

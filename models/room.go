@@ -48,6 +48,7 @@ type Room struct {
 	IsVisible       bool               `json:"is_visible" bson:"is_visible"`
 	Images          []RoomImage        `json:"images" bson:"images"`
 	IsOccupied      bool               `json:"is_occupied" bson:"is_occupied"`
+	Building        string             `bson:"building" json:"building"`
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
 }

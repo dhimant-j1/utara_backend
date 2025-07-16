@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/csv"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -56,6 +59,126 @@ func CreateRoom(c *gin.Context) {
 
 	room.ID = result.InsertedID.(primitive.ObjectID)
 	c.JSON(http.StatusCreated, room)
+}
+
+// CreateMultipleRooms creates multiple new rooms
+func CreateMultipleRooms(c *gin.Context) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File upload failed"})
+		return
+	}
+
+	if !strings.HasSuffix(fileHeader.Filename, ".csv") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only CSV files are allowed"})
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	headers, err := reader.Read()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read CSV headers"})
+		return
+	}
+
+	var rooms []interface{}
+	for {
+		row, err := reader.Read()
+		if err != nil {
+			break
+		}
+
+		// Map CSV headers to row values
+		data := map[string]string{}
+		for i, header := range headers {
+			data[header] = row[i]
+		}
+
+		// Parse primitive values
+		floor, _ := strconv.Atoi(data["floor"])
+		sofaSetQty, _ := strconv.Atoi(data["sofa_set_quantity"])
+		hasAC := strings.ToLower(data["has_ac"]) == "true"
+		hasGeyser := strings.ToLower(data["has_geyser"]) == "true"
+		hasSofaSet := strings.ToLower(data["has_sofa_set"]) == "true"
+		isVisible := strings.ToLower(data["is_visible"]) == "true"
+
+		// Parse beds from comma-separated values
+		bedsStr := strings.Split(data["beds"], ",")
+		var beds []models.Bed
+		for _, b := range bedsStr {
+			beds = append(beds, models.Bed{Type: models.BedType(strings.TrimSpace(b))})
+		}
+
+		// Parse images from comma-separated values
+		imagesStr := strings.Split(data["images"], ",")
+		descStr := strings.Split(data["images_description"], ",")
+
+		var images []models.RoomImage
+		for i, img := range imagesStr {
+			description := ""
+			if i < len(descStr) {
+				description = strings.TrimSpace(descStr[i])
+			}
+
+			images = append(images, models.RoomImage{
+				URL:         strings.TrimSpace(img),
+				Description: description,
+				UploadedAt:  time.Now(), // ? required
+			})
+		}
+
+		room := models.Room{
+			RoomNumber:      data["room_number"],
+			Floor:           floor,
+			Type:            models.RoomType(data["type"]),
+			Beds:            beds,
+			HasGeyser:       hasGeyser,
+			HasAC:           hasAC,
+			HasSofaSet:      hasSofaSet,
+			SofaSetQuantity: sofaSetQty,
+			ExtraAmenities:  data["extra_amenities"],
+			IsVisible:       isVisible,
+			Images:          images,
+			IsOccupied:      false,
+			Building:        data["building"],
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+
+		// Check if room already exists
+		var existing models.Room
+		err = config.DB.Collection("rooms").FindOne(context.Background(), bson.M{
+			"room_number": room.RoomNumber,
+			"building":    room.Building,
+		}).Decode(&existing)
+
+		if err == mongo.ErrNoDocuments {
+			rooms = append(rooms, room)
+		}
+	}
+
+	if len(rooms) == 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "All rooms already exist"})
+		return
+	}
+
+	_, err = config.DB.Collection("rooms").InsertMany(context.Background(), rooms)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert rooms"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Rooms imported successfully",
+		"total_rooms": len(rooms),
+	})
 }
 
 // GetRooms returns all rooms with optional filters

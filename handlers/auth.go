@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 
 	"utara_backend/config"
@@ -242,4 +243,47 @@ func Login(c *gin.Context) {
 		Token: tokenString,
 		User:  user,
 	})
+}
+
+func AssignModulesHandler(c *gin.Context) {
+
+	var input struct {
+		UserID  string          `json:"user_id"`
+		Role    string          `json:"role"` 
+		Modules map[string]bool `json:"modules"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Convert user_id to ObjectID
+	userObjID, err := primitive.ObjectIDFromHex(input.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Check if this user already has a document
+	filter := bson.M{"user_id": userObjID}
+	update := bson.M{
+		"$set": bson.M{
+			"role":    input.Role,
+			"modules": input.Modules,
+			"updated": time.Now(),
+		},
+		"$setOnInsert": bson.M{
+			"created": time.Now(),
+		},
+	}
+
+	opts := options.Update().SetUpsert(true)
+	_, err = config.DB.Collection("user_module_access").UpdateOne(c.Request.Context(), filter, update, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign modules"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Modules assigned successfully"})
 }

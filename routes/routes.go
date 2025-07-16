@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		protected.GET("/profile", handlers.GetProfile)
 		protected.GET("/users", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetAllUsers)
+		protected.POST("/assign-module", middleware.RequireRole(models.RoleSuperAdmin), handlers.AssignModulesHandler)
 
 		// Room routes
 		rooms := protected.Group("/rooms")
@@ -49,6 +50,7 @@ func SetupRoutes(r *gin.Engine) {
 			rooms.GET("/stats", handlers.GetRoomStats)
 			rooms.GET("/:id", handlers.GetRoom)
 			rooms.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateRoom)
+			rooms.POST("/upload-rooms", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.CreateMultipleRooms)
 		}
 
 		// Room request routes
