@@ -1,0 +1,33 @@
+meta {
+  name: Get room by ID
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/rooms/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: aute veniam labore
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  - SUPER_ADMIN and STAFF can see any room
+  - Regular users can only see visible rooms
+  
+}

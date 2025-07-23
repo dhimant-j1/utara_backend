@@ -1,0 +1,23 @@
+meta {
+  name: Upload ROom
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/rooms/upload-rooms
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTMzNDczMTksInJvbGUiOiJTVVBFUl9BRE1JTiIsInVzZXJfaWQiOiI2ODYyYTI5MzBjZmVmZGUyZjM2ZDVhOTEifQ.fXO7sz56ZhktTY5_mwolGNBVziURIr5EUNU4ztmQTMs
+}
+
+body:multipart-form {
+  file: @file(C:\Users\bhara\Documents\demo.csv)
+}
+
+settings {
+  encodeUrl: true
+}

@@ -1,0 +1,37 @@
+meta {
+  name: Register a new user
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://43.205.243.240:8080/auth/signup
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "email": "admin@utara.com",
+    "password": "utara_admin",
+    "name": "Utara Admin",
+    "phone_number": "1234567892",
+    "role": "SUPER_ADMIN"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  - Regular users can only create USER accounts
+  - SUPER_ADMIN can create any type of account
+  - STAFF cannot create new accounts
+  
+}

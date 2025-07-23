@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -71,9 +73,19 @@ func Signup(c *gin.Context) {
 		return
 	}
 
+	parts := strings.Split(req.Email, "@")
+	username := ""
+	if len(parts) > 0 {
+		username = parts[0]
+		fmt.Println("Username:", username)
+	} else {
+		fmt.Println("Invalid email format")
+	}
+
 	// Create user
 	user := models.User{
 		Email:       req.Email,
+		UserName:    username,
 		Password:    string(hashedPassword),
 		Name:        req.Name,
 		Role:        req.Role,
@@ -164,9 +176,18 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
+	parts := strings.Split(req.Email, "@")
+	username := ""
+	if len(parts) > 0 {
+		username = parts[0]
+		fmt.Println("Username:", username)
+	} else {
+		fmt.Println("Invalid email format")
+	}
 	// Create user
 	user := models.User{
 		Email:       req.Email,
+		UserName:    username,
 		Password:    string(hashedPassword),
 		Name:        req.Name,
 		Role:        req.Role,
@@ -248,8 +269,8 @@ func Login(c *gin.Context) {
 func AssignModulesHandler(c *gin.Context) {
 
 	var input struct {
-		UserID  string          `json:"user_id"`
-		Role    string          `json:"role"` 
+		UserID string `json:"user_id"`
+		//Role    string          `json:"role"`
 		Modules map[string]bool `json:"modules"`
 	}
 
@@ -269,7 +290,7 @@ func AssignModulesHandler(c *gin.Context) {
 	filter := bson.M{"user_id": userObjID}
 	update := bson.M{
 		"$set": bson.M{
-			"role":    input.Role,
+			//"role":    input.Role,
 			"modules": input.Modules,
 			"updated": time.Now(),
 		},

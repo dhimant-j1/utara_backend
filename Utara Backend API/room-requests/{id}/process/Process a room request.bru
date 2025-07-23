@@ -1,0 +1,39 @@
+meta {
+  name: Process a room request
+  type: http
+  seq: 1
+}
+
+put {
+  url: {{baseUrl}}/room-requests/:id/process
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: aute veniam labore
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "status": "APPROVED",
+    "room_id": "velit fugiat in amet ullamco"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Only SUPER_ADMIN and STAFF can process room requests
+}

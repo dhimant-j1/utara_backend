@@ -1,0 +1,72 @@
+meta {
+  name: Update room
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/rooms/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: aute veniam labore
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "id": "fugiat quis ipsum",
+    "room_number": "est Lorem officia in",
+    "floor": -865111,
+    "type": "DELUXE",
+    "beds": [
+      {
+        "type": "DOUBLE",
+        "quantity": 55170467
+      },
+      {
+        "type": "DOUBLE",
+        "quantity": 73941861
+      }
+    ],
+    "has_geyser": false,
+    "has_ac": true,
+    "has_sofa_set": true,
+    "sofa_set_quantity": 5024084,
+    "extra_amenities": "quis dolor sed",
+    "is_visible": true,
+    "images": [
+      {
+        "url": "esse elit",
+        "description": "dolore sunt",
+        "uploaded_at": "1998-02-10T22:31:03.687Z"
+      },
+      {
+        "url": "aliquip ex",
+        "description": "anim mollit amet",
+        "uploaded_at": "1964-02-29T23:08:44.185Z"
+      }
+    ],
+    "is_occupied": true,
+    "created_at": "1958-01-04T14:38:36.957Z",
+    "updated_at": "1998-03-10T11:05:10.038Z"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Only SUPER_ADMIN and STAFF can update rooms
+}

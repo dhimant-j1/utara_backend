@@ -17,6 +17,7 @@ const (
 type RoomRequest struct {
 	ID              primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
 	UserID          primitive.ObjectID  `json:"user_id" bson:"user_id"`
+	Name            string              `json:"name" bson:"name"`
 	CheckInDate     time.Time           `json:"check_in_date" bson:"check_in_date"`
 	CheckOutDate    time.Time           `json:"check_out_date" bson:"check_out_date"`
 	NumberOfPeople  int                 `json:"number_of_people" bson:"number_of_people"`

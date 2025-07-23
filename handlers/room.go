@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -159,7 +160,7 @@ func CreateMultipleRooms(c *gin.Context) {
 			"building":    room.Building,
 		}).Decode(&existing)
 
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			rooms = append(rooms, room)
 		}
 	}

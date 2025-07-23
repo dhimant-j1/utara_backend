@@ -1,0 +1,45 @@
+meta {
+  name: Create a room request
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/room-requests
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "id": "mollit ut cupidatat occaecat",
+    "user_id": "nisi et anim non",
+    "check_in_date": "2014-10-01T09:08:29.383Z",
+    "check_out_date": "2002-11-28T19:35:56.876Z",
+    "number_of_people": 12742360,
+    "preferred_type": "FAMILY_ROOM",
+    "special_requests": "ea reprehenderit cillum id dolor",
+    "status": "APPROVED",
+    "processed_by": "adipisicing Lorem",
+    "processed_at": "2004-02-29T09:42:18.182Z",
+    "created_at": "1960-07-22T18:40:43.084Z",
+    "updated_at": "1945-06-16T23:50:40.689Z"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Any authenticated user can create a room request
+}

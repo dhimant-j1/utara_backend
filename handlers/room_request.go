@@ -25,9 +25,16 @@ func CreateRoomRequest(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 	userObjID, _ := primitive.ObjectIDFromHex(userID.(string))
+	var user models.User
+	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user"})
+		return
+	}
 
 	roomRequest := models.RoomRequest{
 		UserID:          userObjID,
+		Name:            user.Name,
 		CheckInDate:     req.CheckInDate,
 		CheckOutDate:    req.CheckOutDate,
 		NumberOfPeople:  req.NumberOfPeople,

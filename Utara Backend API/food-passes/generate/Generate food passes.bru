@@ -1,0 +1,40 @@
+meta {
+  name: Generate food passes
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/food-passes/generate
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "user_id": "voluptate ipsu",
+    "member_names": [
+      "deserunt consequat ut",
+      "labore reprehenderit eiusmod"
+    ],
+    "start_date": "1967-08-25T19:26:41.640Z",
+    "end_date": "1954-07-16T17:31:08.251Z"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Only SUPER_ADMIN and STAFF can generate food passes
+}

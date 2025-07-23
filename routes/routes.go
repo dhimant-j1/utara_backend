@@ -1,19 +1,16 @@
 package routes
 
 import (
-	"time"
-
 	"utara_backend/handlers"
 	"utara_backend/middleware"
 	"utara_backend/models"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(r *gin.Engine) {
 
-	origin := "https://utara-app.web.app"
+	/*origin := "https://utara-app.web.app"
 	//origin := "http://localhost:52369" // Change this to your frontend URL
 	// CORS config
 	r.Use(cors.New(cors.Config{
@@ -23,7 +20,7 @@ func SetupRoutes(r *gin.Engine) {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	}))*/
 
 	// Public routes
 	auth := r.Group("/auth")
