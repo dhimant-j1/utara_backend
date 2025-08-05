@@ -35,6 +35,8 @@ func CreateRoomRequest(c *gin.Context) {
 	roomRequest := models.RoomRequest{
 		UserID:          userObjID,
 		Name:            user.Name,
+		Place:           req.Place,
+		Purpose:         req.Purpose,
 		CheckInDate:     req.CheckInDate,
 		CheckOutDate:    req.CheckOutDate,
 		NumberOfPeople:  req.NumberOfPeople,

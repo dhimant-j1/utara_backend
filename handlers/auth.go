@@ -266,6 +266,53 @@ func Login(c *gin.Context) {
 	})
 }
 
+func UserLogin(c *gin.Context) {
+	var req models.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user with USER role only
+	var user models.User
+	filter := bson.M{
+		"email": req.Email,
+		"role":  models.RoleUser, // Only allow USER role
+	}
+
+	err := config.DB.Collection("users").FindOne(context.Background(), filter).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials or not a regular user"})
+		return
+	}
+
+	// Check password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Generate JWT token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID.Hex(),
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+		return
+	}
+
+	user.Password = "" // Remove password from response
+	c.JSON(http.StatusOK, models.AuthResponse{
+		Token: tokenString,
+		User:  user,
+	})
+}
+
 func AssignModulesHandler(c *gin.Context) {
 
 	var input struct {

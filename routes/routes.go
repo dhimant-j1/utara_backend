@@ -10,23 +10,24 @@ import (
 
 func SetupRoutes(r *gin.Engine) {
 
-	/*origin := "https://utara-app.web.app"
-	//origin := "http://localhost:52369" // Change this to your frontend URL
-	// CORS config
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{origin},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))*/
+	/* 	origin := "https://utara-app.web.app"
+	   	//origin := "http://localhost:52369" // Change this to your frontend URL
+	   	// CORS config
+	   	r.Use(cors.New(cors.Config{
+	   		AllowOrigins:     []string{origin},
+	   		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	   		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+	   		ExposeHeaders:    []string{"Content-Length"},
+	   		AllowCredentials: true,
+	   		MaxAge:           12 * time.Hour,
+	   	})) */
 
 	// Public routes
 	auth := r.Group("/auth")
 	{
 		auth.POST("/signup", handlers.Signup)
 		auth.POST("/login", handlers.Login)
+		auth.POST("/user-login", handlers.UserLogin)
 	}
 
 	// Protected routes
