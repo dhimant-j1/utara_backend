@@ -90,6 +90,7 @@ func CreateMultipleRooms(c *gin.Context) {
 	}
 
 	var rooms []interface{}
+	var skippedRows []string
 	for {
 		row, err := reader.Read()
 		if err != nil {
@@ -102,6 +103,39 @@ func CreateMultipleRooms(c *gin.Context) {
 			data[header] = row[i]
 		}
 
+		// Validate RoomType
+		roomType := models.RoomType(strings.TrimSpace(data["type"]))
+		switch roomType {
+		case models.Standard, models.Deluxe, models.Suite, models.FamilyRoom:
+			// Valid type
+		default:
+			skippedRows = append(skippedRows, "Invalid room type for room_number: "+data["room_number"])
+			continue // Skip this row
+		}
+
+		// Parse and validate beds from comma-separated values
+		bedsStr := strings.Split(data["beds"], ",")
+		var beds []models.Bed
+		validBeds := true
+		for _, b := range bedsStr {
+			trimmedBedType := models.BedType(strings.TrimSpace(b))
+			if trimmedBedType == "" {
+				continue
+			}
+			switch trimmedBedType {
+			case models.Single, models.Double, models.ExtraBed:
+				beds = append(beds, models.Bed{Type: trimmedBedType})
+			default:
+				validBeds = false
+				break // Invalid bed type found
+			}
+		}
+
+		if !validBeds {
+			skippedRows = append(skippedRows, "Invalid bed type for room_number: "+data["room_number"])
+			continue // Skip this row
+		}
+
 		// Parse primitive values
 		floor, _ := strconv.Atoi(data["floor"])
 		sofaSetQty, _ := strconv.Atoi(data["sofa_set_quantity"])
@@ -110,35 +144,32 @@ func CreateMultipleRooms(c *gin.Context) {
 		hasSofaSet := strings.ToLower(data["has_sofa_set"]) == "true"
 		isVisible := strings.ToLower(data["is_visible"]) == "true"
 
-		// Parse beds from comma-separated values
-		bedsStr := strings.Split(data["beds"], ",")
-		var beds []models.Bed
-		for _, b := range bedsStr {
-			beds = append(beds, models.Bed{Type: models.BedType(strings.TrimSpace(b))})
-		}
-
 		// Parse images from comma-separated values
 		imagesStr := strings.Split(data["images"], ",")
 		descStr := strings.Split(data["images_description"], ",")
 
 		var images []models.RoomImage
-		for i, img := range imagesStr {
+		for i, imgURL := range imagesStr {
+			trimmedURL := strings.TrimSpace(imgURL)
+			if trimmedURL == "" {
+				continue
+			}
 			description := ""
 			if i < len(descStr) {
 				description = strings.TrimSpace(descStr[i])
 			}
 
 			images = append(images, models.RoomImage{
-				URL:         strings.TrimSpace(img),
+				URL:         trimmedURL,
 				Description: description,
-				UploadedAt:  time.Now(), // ? required
+				UploadedAt:  time.Now(),
 			})
 		}
 
 		room := models.Room{
 			RoomNumber:      data["room_number"],
 			Floor:           floor,
-			Type:            models.RoomType(data["type"]),
+			Type:            roomType,
 			Beds:            beds,
 			HasGeyser:       hasGeyser,
 			HasAC:           hasAC,
@@ -162,24 +193,32 @@ func CreateMultipleRooms(c *gin.Context) {
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			rooms = append(rooms, room)
+		} else {
+			skippedRows = append(skippedRows, "Room already exists: "+data["room_number"])
 		}
 	}
 
-	if len(rooms) == 0 {
-		c.JSON(http.StatusConflict, gin.H{"error": "All rooms already exist"})
+	if len(rooms) > 0 {
+		_, err = config.DB.Collection("rooms").InsertMany(context.Background(), rooms)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert rooms"})
+			return
+		}
+	}
+
+	response := gin.H{
+		"message":         "Room import process finished",
+		"imported_rooms":  len(rooms),
+		"skipped_rows":    len(skippedRows),
+		"skipped_details": skippedRows,
+	}
+
+	if len(rooms) == 0 && len(skippedRows) > 0 {
+		c.JSON(http.StatusConflict, response)
 		return
 	}
 
-	_, err = config.DB.Collection("rooms").InsertMany(context.Background(), rooms)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert rooms"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Rooms imported successfully",
-		"total_rooms": len(rooms),
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // GetRooms returns all rooms with optional filters
