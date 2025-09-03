@@ -90,6 +90,7 @@ func Signup(c *gin.Context) {
 		Name:        req.Name,
 		Role:        req.Role,
 		PhoneNumber: req.PhoneNumber,
+		UserType:    "Neelkanth",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -192,6 +193,7 @@ func CreateUser(c *gin.Context) {
 		Name:        req.Name,
 		Role:        req.Role,
 		PhoneNumber: req.PhoneNumber,
+		UserType:    "Neelkanth",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -354,4 +356,58 @@ func AssignModulesHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Modules assigned successfully"})
+}
+
+func AssignUserType(c *gin.Context) {
+	var req struct {
+		UserID   string `json:"user_id" binding:"required"`
+		UserType string `json:"user_type" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userObjID, err := primitive.ObjectIDFromHex(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		return
+	}
+
+	allowedUserTypes := map[string]bool{
+		"Shri Hari+": true,
+		"Shri Hari":  true,
+		"Sarju+":     true,
+		"Sarju":      true,
+		"Neelkanth+": true,
+		"Neelkanth":  true,
+	}
+
+	if !allowedUserTypes[req.UserType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_type"})
+		return
+	}
+
+	// Update user struct fields in "users" collection
+	filter := bson.M{"_id": userObjID}
+	update := bson.M{"$set": bson.M{
+		"user_type":  req.UserType,
+		"updated_at": time.Now(),
+	}}
+
+	result, err := config.DB.Collection("users").UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user type"})
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User type updated successfully",
+	})
 }

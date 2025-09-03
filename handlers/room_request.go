@@ -33,13 +33,18 @@ func CreateRoomRequest(c *gin.Context) {
 	}
 
 	roomRequest := models.RoomRequest{
-		UserID:          userObjID,
-		Name:            user.Name,
-		Place:           req.Place,
-		Purpose:         req.Purpose,
-		CheckInDate:     req.CheckInDate,
-		CheckOutDate:    req.CheckOutDate,
-		NumberOfPeople:  req.NumberOfPeople,
+		UserID:       userObjID,
+		Name:         user.Name,
+		Place:        req.Place,
+		Purpose:      req.Purpose,
+		CheckInDate:  req.CheckInDate,
+		CheckOutDate: req.CheckOutDate,
+		NumberOfPeople: models.PeopleCount{
+			Male:     req.NumberOfPeople.Male,
+			Female:   req.NumberOfPeople.Female,
+			Children: req.NumberOfPeople.Children,
+			Total:    req.NumberOfPeople.Male + req.NumberOfPeople.Female + req.NumberOfPeople.Children,
+		},
 		PreferredType:   req.PreferredType,
 		SpecialRequests: req.SpecialRequests,
 		Status:          models.StatusPending,
@@ -57,7 +62,6 @@ func CreateRoomRequest(c *gin.Context) {
 	c.JSON(http.StatusCreated, roomRequest)
 }
 
-// GetRoomRequests returns all room requests with optional filters
 // GetRoomRequests returns all room requests with optional filters and room details
 func GetRoomRequests(c *gin.Context) {
 	filter := bson.M{}

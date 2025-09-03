@@ -1,11 +1,12 @@
 package routes
 
 import (
-	"github.com/gin-contrib/cors"
 	"time"
 	"utara_backend/handlers"
 	"utara_backend/middleware"
 	"utara_backend/models"
+
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,6 +42,7 @@ func SetupRoutes(r *gin.Engine) {
 		protected.GET("/profile", handlers.GetProfile)
 		protected.GET("/users", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetAllUsers)
 		protected.POST("/assign-module", middleware.RequireRole(models.RoleSuperAdmin), handlers.AssignModulesHandler)
+		protected.POST("/assign-usertype", middleware.RequireRole(models.RoleSuperAdmin), handlers.AssignUserType)
 
 		// Room routes
 		rooms := protected.Group("/rooms")

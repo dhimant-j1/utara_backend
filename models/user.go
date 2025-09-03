@@ -23,6 +23,7 @@ type User struct {
 	Role        UserRole           `json:"role" bson:"role"`
 	IsImportant bool               `json:"is_important" bson:"is_important"`
 	PhoneNumber string             `json:"phone_number" bson:"phone_number"`
+	UserType    string             `json:"user_type" bson:"user_type"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
 }

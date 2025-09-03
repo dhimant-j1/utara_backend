@@ -14,6 +14,13 @@ const (
 	StatusRejected RequestStatus = "REJECTED"
 )
 
+type PeopleCount struct {
+	Male     int `json:"male" bson:"male"`
+	Female   int `json:"female" bson:"female"`
+	Children int `json:"children" bson:"children"`
+	Total    int `json:"total" bson:"total"`
+}
+
 type RoomRequest struct {
 	ID              primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
 	Place           string              `json:"place" bson:"place"`
@@ -22,7 +29,7 @@ type RoomRequest struct {
 	Name            string              `json:"name" bson:"name"`
 	CheckInDate     time.Time           `json:"check_in_date" bson:"check_in_date"`
 	CheckOutDate    time.Time           `json:"check_out_date" bson:"check_out_date"`
-	NumberOfPeople  int                 `json:"number_of_people" bson:"number_of_people"`
+	NumberOfPeople  PeopleCount         `json:"number_of_people" bson:"number_of_people"`
 	PreferredType   RoomType            `json:"preferred_type" bson:"preferred_type"`
 	SpecialRequests string              `json:"special_requests" bson:"special_requests"`
 	Status          RequestStatus       `json:"status" bson:"status"`
@@ -48,13 +55,13 @@ type RoomAssignment struct {
 }
 
 type CreateRoomRequestRequest struct {
-	CheckInDate     time.Time `json:"check_in_date" binding:"required"`
-	CheckOutDate    time.Time `json:"check_out_date" binding:"required"`
-	NumberOfPeople  int       `json:"number_of_people" binding:"required"`
-	PreferredType   RoomType  `json:"preferred_type" binding:"required"`
-	Purpose         string    `json:"purpose" binding:"required"`
-	Place           string    `json:"place" binding:"required"`
-	SpecialRequests string    `json:"special_requests"`
+	CheckInDate     time.Time   `json:"check_in_date" binding:"required"`
+	CheckOutDate    time.Time   `json:"check_out_date" binding:"required"`
+	NumberOfPeople  PeopleCount `json:"number_of_people" binding:"required"`
+	PreferredType   RoomType    `json:"preferred_type" binding:"required"`
+	Purpose         string      `json:"purpose" binding:"required"`
+	Place           string      `json:"place" binding:"required"`
+	SpecialRequests string      `json:"special_requests"`
 }
 
 type ProcessRoomRequestRequest struct {
