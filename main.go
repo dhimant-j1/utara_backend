@@ -23,6 +23,20 @@ func main() {
 	// Initialize Gin
 	r := gin.Default()
 
+	// ✅ Serve static files from ./static folder (place login.html & index.html here)
+	r.Static("/static", "./static")
+
+	// ✅ Map clean routes for your pages
+	r.GET("/", func(c *gin.Context) {
+		c.File("./static/login.html")
+	})
+	r.GET("/login", func(c *gin.Context) {
+		c.File("./static/login.html")
+	})
+	r.GET("/upload", func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+	
 	// Setup routes
 	routes.SetupRoutes(r)
 

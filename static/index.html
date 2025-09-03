@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Multiple Rooms</title>
+    <style>
+        :root {
+            --primary-blue: #007bff;
+            --card-bg-color: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: var(--card-bg-color);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px var(--shadow-color);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 3rem 1.5rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-blue);
+            background-color: #f0f8ff;
+        }
+
+        .upload-area .upload-icon {
+            margin-bottom: 1.5rem;
+            color: var(--primary-blue);
+        }
+
+        .upload-area .upload-icon svg {
+            width: 60px;
+            height: 60px;
+            fill: currentColor;
+        }
+
+        .upload-area p {
+            margin: 0.5rem 0;
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .browse-button {
+            background-color: #f0f2f5;
+            color: var(--text-color);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-top: 1rem;
+        }
+
+        .browse-button:hover {
+            background-color: #e0e2e5;
+        }
+
+        #file-name {
+            display: block;
+            margin-top: 1rem;
+            font-style: italic;
+            color: #888;
+        }
+
+        .upload-button {
+            width: 100%;
+            background-color: var(--primary-blue);
+            color: #fff;
+            border: none;
+            padding: 1rem 0;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .upload-button:hover {
+            background-color: #0056b3;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="card">
+        <h1 class="title">Add Multiple Rooms</h1>
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path
+                        d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+                </svg>
+            </div>
+            <p>Drag & drop your .csv file here</p>
+            <p>or</p>
+            <input type="file" id="file-input" accept=".csv" hidden>
+            <button class="browse-button" onclick="document.getElementById('file-input').click()">Browse Files</button>
+            <span id="file-name">No file chosen</span>
+        </div>
+        <button class="upload-button" type="submit">Upload</button>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const fileNameSpan = document.getElementById('file-name');
+        const uploadButton = document.querySelector('.upload-button');
+
+        // Role check on page load
+        const role = localStorage.getItem("userRole");
+        if (role !== "SUPER_ADMIN" && role !== "STAFF") {
+            alert("Access denied: You are not allowed to view this page.");
+            window.location.href = "/login";
+        }
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.csv')) {
+                fileInput.files = e.dataTransfer.files;
+                fileNameSpan.textContent = file.name;
+            } else {
+                alert('Please upload a .csv file.');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                if (file.name.endsWith('.csv')) {
+                    fileNameSpan.textContent = file.name;
+                } else {
+                    alert('Please upload a .csv file.');
+                    fileInput.value = '';
+                    fileNameSpan.textContent = 'No file chosen';
+                }
+            }
+        });
+
+        // This is a placeholder for the actual upload logic
+        uploadButton.addEventListener("click", () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a CSV file first.");
+                return;
+            }
+
+            const token = localStorage.getItem("authToken");
+            if (!token) {
+                alert("You must log in first!");
+                window.location.href = "/login";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            fetch("/rooms/upload-rooms", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Upload Response:", data);
+                    alert(data.message || "Upload successful!");
+                })
+                .catch(err => {
+                    console.error("Error:", err);
+                    alert("Upload failed: " + err.message);
+                });
+        });
+
+
+    </script>
+</body>
+
+</html>
