@@ -266,17 +266,24 @@ func AssignRoom(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking room availability"})
 		return
 	}
+	type RoomAssignmentDetails struct {
+		models.RoomAssignment
+		User *models.User `json:"user,omitempty"`
+	}
 
-	assignment := models.RoomAssignment{
-		RoomID:       req.RoomID,
-		UserID:       req.UserID,
-		RequestID:    req.RequestID,
-		CheckInDate:  req.CheckInDate,
-		CheckOutDate: req.CheckOutDate,
-		AssignedBy:   staffObjID,
-		AssignedAt:   time.Now(),
-		CheckedIn:    false,
-		CheckedOut:   false,
+	assignment := RoomAssignmentDetails{
+		RoomAssignment: models.RoomAssignment{
+			RoomID:       req.RoomID,
+			UserID:       req.UserID,
+			RequestID:    req.RequestID,
+			CheckInDate:  req.CheckInDate,
+			CheckOutDate: req.CheckOutDate,
+			AssignedBy:   staffObjID,
+			AssignedAt:   time.Now(),
+			CheckedIn:    false,
+			CheckedOut:   false,
+		},
+		User: nil,
 	}
 
 	result, err := config.DB.Collection("room_assignments").InsertOne(context.Background(), assignment)
