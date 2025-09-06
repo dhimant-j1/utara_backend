@@ -22,15 +22,15 @@ type PeopleCount struct {
 }
 
 type RoomRequest struct {
-	ID              primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
-	Place           string              `json:"place" bson:"place"`
-	Purpose         string              `json:"purpose" bson:"purpose"`
-	UserID          primitive.ObjectID  `json:"user_id" bson:"user_id"`
-	Name            string              `json:"name" bson:"name"`
-	CheckInDate     time.Time           `json:"check_in_date" bson:"check_in_date"`
-	CheckOutDate    time.Time           `json:"check_out_date" bson:"check_out_date"`
-	NumberOfPeople  PeopleCount         `json:"number_of_people" bson:"number_of_people"`
-	PreferredType   RoomType            `json:"preferred_type" bson:"preferred_type"`
+	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Place          string             `json:"place" bson:"place"`
+	Purpose        string             `json:"purpose" bson:"purpose"`
+	UserID         primitive.ObjectID `json:"user_id" bson:"user_id"`
+	Name           string             `json:"name" bson:"name"`
+	CheckInDate    time.Time          `json:"check_in_date" bson:"check_in_date"`
+	CheckOutDate   time.Time          `json:"check_out_date" bson:"check_out_date"`
+	NumberOfPeople PeopleCount        `json:"number_of_people" bson:"number_of_people"`
+	//PreferredType   RoomType            `json:"preferred_type" bson:"preferred_type"`
 	SpecialRequests string              `json:"special_requests" bson:"special_requests"`
 	Status          RequestStatus       `json:"status" bson:"status"`
 	ProcessedBy     *primitive.ObjectID `json:"processed_by,omitempty" bson:"processed_by,omitempty"`
@@ -55,13 +55,13 @@ type RoomAssignment struct {
 }
 
 type CreateRoomRequestRequest struct {
-	CheckInDate     time.Time   `json:"check_in_date" binding:"required"`
-	CheckOutDate    time.Time   `json:"check_out_date" binding:"required"`
-	NumberOfPeople  PeopleCount `json:"number_of_people" binding:"required"`
-	PreferredType   RoomType    `json:"preferred_type" binding:"required"`
-	Purpose         string      `json:"purpose" binding:"required"`
-	Place           string      `json:"place" binding:"required"`
-	SpecialRequests string      `json:"special_requests"`
+	CheckInDate    time.Time   `json:"check_in_date" binding:"required"`
+	CheckOutDate   time.Time   `json:"check_out_date" binding:"required"`
+	NumberOfPeople PeopleCount `json:"number_of_people" binding:"required"`
+	//PreferredType   RoomType    `json:"preferred_type" binding:"required"`
+	Purpose         string `json:"purpose" binding:"required"`
+	Place           string `json:"place" binding:"required"`
+	SpecialRequests string `json:"special_requests"`
 }
 
 type ProcessRoomRequestRequest struct {

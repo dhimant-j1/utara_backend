@@ -45,7 +45,7 @@ func CreateRoomRequest(c *gin.Context) {
 			Children: req.NumberOfPeople.Children,
 			Total:    req.NumberOfPeople.Male + req.NumberOfPeople.Female + req.NumberOfPeople.Children,
 		},
-		PreferredType:   req.PreferredType,
+		//PreferredType:   req.PreferredType,
 		SpecialRequests: req.SpecialRequests,
 		Status:          models.StatusPending,
 		CreatedAt:       time.Now(),
@@ -108,6 +108,7 @@ func GetRoomRequests(c *gin.Context) {
 	// Create a response struct to include room details
 	type RoomRequestWithDetails struct {
 		models.RoomRequest
+		User       *models.User           `json:"user,omitempty"`
 		Room       *models.Room           `json:"room,omitempty"`
 		Assignment *models.RoomAssignment `json:"assignment,omitempty"`
 	}
@@ -116,13 +117,26 @@ func GetRoomRequests(c *gin.Context) {
 
 	// For each request, find its assignment and room (if any)
 	for _, request := range requests {
+		// get userDetails
+		var userDetails models.User
+		err := config.DB.Collection("users").FindOne(
+			context.Background(),
+			bson.M{"_id": request.UserID},
+		).Decode(&userDetails)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user details"})
+			return
+		}
+
 		requestWithDetails := RoomRequestWithDetails{
 			RoomRequest: request,
+			User:        &userDetails,
 		}
 
 		// Find assignment for this request
 		var assignment models.RoomAssignment
-		err := config.DB.Collection("room_assignments").FindOne(
+		err = config.DB.Collection("room_assignments").FindOne(
 			context.Background(),
 			bson.M{"request_id": request.ID},
 		).Decode(&assignment)

@@ -9,10 +9,12 @@ import (
 type RoomType string
 
 const (
-	Standard   RoomType = "STANDARD"
-	Deluxe     RoomType = "DELUXE"
-	Suite      RoomType = "SUITE"
-	FamilyRoom RoomType = "FAMILY_ROOM"
+	ShreeHariPlus RoomType = "SHREEHARIPLUS"
+	ShreeHari     RoomType = "SHREEHARI"
+	SarjuPlus     RoomType = "SARJUPLUS"
+	Sarju         RoomType = "SARJU"
+	NeelkanthPlus RoomType = "NEELKANTHPLUS"
+	Neelkanth     RoomType = "NEELKANTH"
 )
 
 type BedType string

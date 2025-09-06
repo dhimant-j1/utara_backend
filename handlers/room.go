@@ -106,7 +106,7 @@ func CreateMultipleRooms(c *gin.Context) {
 		// Validate RoomType
 		roomType := models.RoomType(strings.TrimSpace(data["type"]))
 		switch roomType {
-		case models.Standard, models.Deluxe, models.Suite, models.FamilyRoom:
+		case models.ShreeHariPlus, models.ShreeHari, models.SarjuPlus, models.Sarju, models.NeelkanthPlus, models.Neelkanth:
 			// Valid type
 		default:
 			skippedRows = append(skippedRows, "Invalid room type for room_number: "+data["room_number"])
