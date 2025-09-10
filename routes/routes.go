@@ -44,6 +44,13 @@ func SetupRoutes(r *gin.Engine) {
 		protected.POST("/assign-module", middleware.RequireRole(models.RoleSuperAdmin), handlers.AssignModulesHandler)
 		protected.POST("/assign-usertype", middleware.RequireRole(models.RoleSuperAdmin), handlers.AssignUserType)
 
+		// Users routes
+		users := protected.Group("/user")
+		{
+			users.PUT("/update-user/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateUsers)
+			users.DELETE("/delete-user/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteUser)
+		}
+
 		// Room routes
 		rooms := protected.Group("/rooms")
 		{
@@ -53,6 +60,7 @@ func SetupRoutes(r *gin.Engine) {
 			rooms.GET("/:id", handlers.GetRoom)
 			rooms.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateRoom)
 			rooms.POST("/upload-rooms", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.CreateMultipleRooms)
+			rooms.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.DeleteRoom)
 		}
 
 		// Room request routes
@@ -77,6 +85,11 @@ func SetupRoutes(r *gin.Engine) {
 			foodPasses.POST("/generate", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GenerateFoodPasses)
 			foodPasses.GET("/user/:user_id", handlers.GetUserFoodPasses)
 			foodPasses.POST("/scan", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ScanFoodPass)
+			foodPasses.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateFoodPass)
+			foodPasses.POST("/food-pass-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateFoodPassCategory)
+			foodPasses.GET("/get-pass-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetFoodPassCategories)
+			foodPasses.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
+			foodPasses.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
 		}
 	}
 }

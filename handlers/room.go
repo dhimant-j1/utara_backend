@@ -415,3 +415,29 @@ func GetRoomStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, stats)
 }
+
+// DeleteRoom deletes a room by ID
+func DeleteRoom(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
+		return
+	}
+
+	result, err := config.DB.Collection("rooms").DeleteOne(
+		context.Background(),
+		bson.M{"_id": id},
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting room"})
+		return
+	}
+
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Room deleted successfully"})
+}
