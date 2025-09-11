@@ -24,6 +24,8 @@ type FoodPass struct {
 	IsUsed     bool               `json:"is_used" bson:"is_used"`
 	DiningHall string             `json:"dining_hall" bson:"dining_hall"`
 	ColorCode  string             `json:"color_code" bson:"color_code"`
+	DiningHall string             `json:"dining_hall" bson:"dining_hall"`
+	ColorCode  string             `json:"color_code" bson:"color_code"`
 	UsedAt     *time.Time         `json:"used_at,omitempty" bson:"used_at,omitempty"`
 	CreatedBy  primitive.ObjectID `json:"created_by" bson:"created_by"`
 	CreatedAt  time.Time          `json:"created_at" bson:"created_at"`
@@ -34,6 +36,8 @@ type GenerateFoodPassRequest struct {
 	MemberNames []string           `json:"member_names" binding:"required"`
 	StartDate   time.Time          `json:"start_date" binding:"required"`
 	EndDate     time.Time          `json:"end_date" binding:"required"`
+	DiningHall  string             `json:"dining_hall" binding:"required"`
+	ColorCode   string             `json:"color_code" binding:"required"`
 	DiningHall  string             `json:"dining_hall" binding:"required"`
 	ColorCode   string             `json:"color_code" binding:"required"`
 }
