@@ -37,6 +37,7 @@ type RoomRequest struct {
 	ProcessedAt     *time.Time          `json:"processed_at,omitempty" bson:"processed_at,omitempty"`
 	CreatedAt       time.Time           `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time           `json:"updated_at" bson:"updated_at"`
+	Reference       string              `json:"reference" bson:"reference"`
 }
 
 type RoomAssignment struct {
@@ -62,6 +63,7 @@ type CreateRoomRequestRequest struct {
 	Purpose         string `json:"purpose" binding:"required"`
 	Place           string `json:"place" binding:"required"`
 	SpecialRequests string `json:"special_requests"`
+	Reference       string `json:"reference"`
 }
 
 type ProcessRoomRequestRequest struct {

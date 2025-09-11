@@ -50,6 +50,7 @@ func CreateRoomRequest(c *gin.Context) {
 		Status:          models.StatusPending,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		Reference:       req.Reference,
 	}
 
 	result, err := config.DB.Collection("room_requests").InsertOne(context.Background(), roomRequest)
