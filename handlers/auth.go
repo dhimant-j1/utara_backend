@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 
@@ -410,4 +411,80 @@ func AssignUserType(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User type updated successfully",
 	})
+}
+
+func UpdateUsers(c *gin.Context) {
+	id := c.Param("id")
+	userID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updateData := bson.M{}
+	for key, value := range req {
+		if value != nil && value != "" {
+			// Hash password if updating
+			if key == "password" {
+				hashedPassword, err := bcrypt.GenerateFromPassword([]byte(value.(string)), bcrypt.DefaultCost)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+					return
+				}
+				updateData["password"] = string(hashedPassword)
+			} else {
+				updateData[key] = value
+			}
+		}
+	}
+
+	updateData["updated_at"] = time.Now()
+
+	result := config.DB.Collection("users").FindOneAndUpdate(
+		context.Background(),
+		bson.M{"_id": userID},
+		bson.M{"$set": updateData},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	)
+
+	var updatedUser models.User
+	if err := result.Decode(&updatedUser); err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user"})
+		return
+	}
+
+	updatedUser.Password = "" // hide password in response
+	c.JSON(http.StatusOK, updatedUser)
+}
+
+func DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	userID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	result, err := config.DB.Collection("users").DeleteOne(context.Background(), bson.M{"_id": userID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
+
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }

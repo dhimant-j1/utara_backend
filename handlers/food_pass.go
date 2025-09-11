@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"utara_backend/config"
 	"utara_backend/models"
@@ -67,6 +68,8 @@ func GenerateFoodPasses(c *gin.Context) {
 					Date:       currentDate,
 					QRCode:     qrCode,
 					IsUsed:     false,
+					DiningHall: req.DiningHall,
+					ColorCode:  req.ColorCode,
 					CreatedBy:  staffObjID,
 					CreatedAt:  time.Now(),
 				}
@@ -187,4 +190,187 @@ func ScanFoodPass(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Food pass scanned successfully"})
+}
+
+func UpdateFoodPass(c *gin.Context) {
+
+	passID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food pass ID"})
+		return
+	}
+
+	var req struct {
+		MemberName *string          `json:"member_name,omitempty"`
+		MealType   *models.MealType `json:"meal_type,omitempty"`
+		Date       *time.Time       `json:"date,omitempty"`
+		IsUsed     *bool            `json:"is_used,omitempty"`
+		DiningHall *string          `json:"dining_hall,omitempty"`
+		ColorCode  *string          `json:"color_code,omitempty"`
+		UsedAt     *time.Time       `json:"used_at,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	update := bson.M{"updated_at": time.Now()}
+	set := bson.M{}
+	if req.MemberName != nil {
+		set["member_name"] = *req.MemberName
+	}
+	if req.MealType != nil {
+		set["meal_type"] = *req.MealType
+	}
+	if req.Date != nil {
+		set["date"] = *req.Date
+	}
+	if req.IsUsed != nil {
+		set["is_used"] = *req.IsUsed
+	}
+	if req.DiningHall != nil {
+		set["dining_hall"] = *req.DiningHall
+	}
+	if req.ColorCode != nil {
+		set["color_code"] = *req.ColorCode
+	}
+	if req.UsedAt != nil {
+		set["used_at"] = req.UsedAt
+	}
+
+	if len(set) > 0 {
+		update["$set"] = set
+	}
+
+	result := config.DB.Collection("food_passes").FindOneAndUpdate(
+		context.Background(),
+		bson.M{"_id": passID},
+		update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	)
+
+	var updatedPass models.FoodPass
+	if err := result.Decode(&updatedPass); err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Food pass not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating food pass"})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedPass)
+}
+
+// CreateFoodPassCategory creates a new food pass category
+func CreateFoodPassCategory(c *gin.Context) {
+	var req models.FoodPassCategory
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate color code (simple check: must start with # and length 7)
+	if len(req.ColorCode) != 7 || req.ColorCode[0] != '#' {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color code. Use hex format like #FF5733"})
+		return
+	}
+
+	req.ID = primitive.NewObjectID()
+	req.CreatedAt = time.Now()
+
+	_, err := config.DB.Collection("food_pass_categories").InsertOne(context.Background(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating category"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Food pass category created successfully",
+		"category": req,
+	})
+}
+
+// GetFoodPassCategories lists all categories
+func GetFoodPassCategories(c *gin.Context) {
+	cursor, err := config.DB.Collection("food_pass_categories").Find(context.Background(), bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching categories"})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var categories []models.FoodPassCategory
+	if err := cursor.All(context.Background(), &categories); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding categories"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"categories": categories})
+}
+
+// UpdateFoodPassCategory updates building name or color code
+func UpdateFoodPassCategory(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	var req struct {
+		BuildingName string `json:"building_name"`
+		ColorCode    string `json:"color_code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	update := bson.M{}
+	if req.BuildingName != "" {
+		update["building_name"] = req.BuildingName
+	}
+	if req.ColorCode != "" {
+		if len(req.ColorCode) != 7 || req.ColorCode[0] != '#' {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color code. Use hex format like #FF5733"})
+			return
+		}
+		update["color_code"] = req.ColorCode
+	}
+
+	if len(update) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid fields to update"})
+		return
+	}
+
+	_, err = config.DB.Collection("food_pass_categories").UpdateOne(
+		context.Background(),
+		bson.M{"_id": id},
+		bson.M{"$set": update},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating category"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Category updated successfully"})
+}
+
+// DeleteFoodPassCategory deletes a category by ID
+func DeleteFoodPassCategory(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	_, err = config.DB.Collection("food_pass_categories").DeleteOne(context.Background(), bson.M{"_id": id})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting category"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
 }
