@@ -22,6 +22,8 @@ type FoodPass struct {
 	Date       time.Time          `json:"date" bson:"date"`
 	QRCode     string             `json:"qr_code" bson:"qr_code"`
 	IsUsed     bool               `json:"is_used" bson:"is_used"`
+	IsExpired  bool               `json:"is_expired" bson:"is_expired"`
+	ExpiredAt  *time.Time         `json:"expired_at,omitempty" bson:"expired_at,omitempty"`
 	DiningHall string             `json:"dining_hall" bson:"dining_hall"`
 	ColorCode  string             `json:"color_code" bson:"color_code"`
 	UsedAt     *time.Time         `json:"used_at,omitempty" bson:"used_at,omitempty"`

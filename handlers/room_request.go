@@ -388,5 +388,29 @@ func CheckOutRoom(c *gin.Context) {
 		return
 	}
 
+	// Expire all unused & active food passes for this user
+	_, err = config.DB.Collection("food_passes").UpdateMany(
+		context.Background(),
+		bson.M{"user_id": assignment.UserID, "is_used": false, "is_expired": bson.M{"$ne": true}},
+		bson.M{"$set": bson.M{
+			"is_expired": true,
+			"expired_at": now,
+		}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error expiring food passes"})
+		return
+	}
+
+	// Delete all unused & not expired food passes for this user
+	// _, err = config.DB.Collection("food_passes").DeleteMany(
+	// 	context.Background(),
+	// 	bson.M{"user_id": assignment.UserID, "is_expired": bson.M{"$ne": true}},
+	// )
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting food passes"})
+	// 	return
+	// }
+
 	c.JSON(http.StatusOK, assignment)
 }
