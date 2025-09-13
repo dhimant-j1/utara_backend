@@ -60,6 +60,18 @@ func GenerateFoodPasses(c *gin.Context) {
 					return
 				}
 
+				if req.DiningHall != "" {
+					var category models.FoodPassCategory
+					err := config.DB.Collection("food_pass_categories").FindOne(context.Background(), bson.M{
+						"building_name": req.DiningHall,
+					}).Decode(&category)
+					if err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching food pass category"})
+						return
+					}
+					req.ColorCode = category.ColorCode
+				}
+
 				pass := models.FoodPass{
 					ID:         id,
 					UserID:     req.UserID,
@@ -301,7 +313,7 @@ func GetFoodPassCategories(c *gin.Context) {
 	}
 	defer cursor.Close(context.Background())
 
-	var categories []models.FoodPassCategory
+	var categories []models.FoodPassCategory = []models.FoodPassCategory{}
 	if err := cursor.All(context.Background(), &categories); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding categories"})
 		return

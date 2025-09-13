@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: Utara Backend API
-  description: API for managing rooms, room requests, and food passes
-  version: 1.0.0
+  description: API for managing rooms, room requests, food passes, and user management
+  version: 2.0.0
 
 servers:
   - url: http://localhost:61554
@@ -22,6 +22,8 @@ components:
         id:
           type: string
           format: objectId
+        user_name:
+          type: string
         email:
           type: string
           format: email
@@ -33,6 +35,8 @@ components:
         is_important:
           type: boolean
         phone_number:
+          type: string
+        user_type:
           type: string
         created_at:
           type: string
@@ -85,6 +89,40 @@ components:
         user:
           $ref: '#/components/schemas/User'
 
+    UserModuleAccess:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        user_id:
+          type: string
+          format: objectId
+        role:
+          type: string
+        modules:
+          type: object
+          additionalProperties:
+            type: boolean
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+
+    PeopleCount:
+      type: object
+      properties:
+        male:
+          type: integer
+        female:
+          type: integer
+        children:
+          type: integer
+        total:
+          type: integer
+
     Room:
       type: object
       properties:
@@ -97,7 +135,7 @@ components:
           type: integer
         type:
           type: string
-          enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+          enum: [SHREEHARIPLUS, SHREEHARI, SARJUPLUS, SARJU, NEELKANTHPLUS, NEELKANTH]
         beds:
           type: array
           items:
@@ -120,6 +158,8 @@ components:
             $ref: '#/components/schemas/RoomImage'
         is_occupied:
           type: boolean
+        building:
+          type: string
         created_at:
           type: string
           format: date-time
@@ -156,6 +196,12 @@ components:
         user_id:
           type: string
           format: objectId
+        name:
+          type: string
+        place:
+          type: string
+        purpose:
+          type: string
         check_in_date:
           type: string
           format: date-time
@@ -163,10 +209,7 @@ components:
           type: string
           format: date-time
         number_of_people:
-          type: integer
-        preferred_type:
-          type: string
-          enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+          $ref: '#/components/schemas/PeopleCount'
         special_requests:
           type: string
         status:
@@ -178,10 +221,50 @@ components:
         processed_at:
           type: string
           format: date-time
+        reference:
+          type: string
         created_at:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+
+    RoomAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        room_id:
+          type: string
+          format: objectId
+        user_id:
+          type: string
+          format: objectId
+        request_id:
+          type: string
+          format: objectId
+        check_in_date:
+          type: string
+          format: date-time
+        check_out_date:
+          type: string
+          format: date-time
+        assigned_by:
+          type: string
+          format: objectId
+        assigned_at:
+          type: string
+          format: date-time
+        checked_in:
+          type: boolean
+        checked_in_at:
+          type: string
+          format: date-time
+        checked_out:
+          type: boolean
+        checked_out_at:
           type: string
           format: date-time
 
@@ -206,12 +289,30 @@ components:
           type: string
         is_used:
           type: boolean
+        dining_hall:
+          type: string
+        color_code:
+          type: string
         used_at:
           type: string
           format: date-time
         created_by:
           type: string
           format: objectId
+        created_at:
+          type: string
+          format: date-time
+
+    FoodPassCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        building_name:
+          type: string
+        color_code:
+          type: string
         created_at:
           type: string
           format: date-time
@@ -258,7 +359,7 @@ paths:
 
   /auth/login:
     post:
-      summary: Login user
+      summary: Login user (admin/staff)
       requestBody:
         required: true
         content:
@@ -279,6 +380,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /auth/user-login:
+    post:
+      summary: Login for regular users only
+      description: Only allows users with USER role to login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials or not a regular user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /createUser:
+    post:
+      summary: Create a new user (protected)
+      description: Create a new user account (requires authentication)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /profile:
     get:
       summary: Get user profile
@@ -290,9 +447,209 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users:
+    get:
+      summary: Get all users
+      description: Only SUPER_ADMIN and STAFF can access this endpoint
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  count:
+                    type: integer
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assign-module:
+    post:
+      summary: Assign modules to user
+      description: Only SUPER_ADMIN can assign modules
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - modules
+              properties:
+                user_id:
+                  type: string
+                modules:
+                  type: object
+                  additionalProperties:
+                    type: boolean
+      responses:
+        '200':
+          description: Modules assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assign-usertype:
+    post:
+      summary: Assign user type
+      description: Only SUPER_ADMIN can assign user types
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - user_type
+              properties:
+                user_id:
+                  type: string
+                user_type:
+                  type: string
+                  enum: ["Shri Hari+", "Shri Hari", "Sarju+", "Sarju", "Neelkanth+", "Neelkanth"]
+      responses:
+        '200':
+          description: User type updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid user type or user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/update-user/{id}:
+    put:
+      summary: Update user
+      description: Only SUPER_ADMIN can update users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                phone_number:
+                  type: string
+                role:
+                  type: string
+                  enum: [SUPER_ADMIN, STAFF, USER]
+                user_type:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/delete-user/{id}:
+    delete:
+      summary: Delete user
+      description: Only SUPER_ADMIN can delete users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
           content:
             application/json:
               schema:
@@ -346,7 +703,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [STANDARD, DELUXE, SUITE, FAMILY_ROOM]
+            enum: [SHREEHARIPLUS, SHREEHARI, SARJUPLUS, SARJU, NEELKANTHPLUS, NEELKANTH]
         - name: is_visible
           in: query
           schema:
@@ -364,6 +721,53 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Room'
+
+  /rooms/upload-rooms:
+    post:
+      summary: Upload multiple rooms via CSV
+      description: Only SUPER_ADMIN and STAFF can upload rooms
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Rooms uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  imported_rooms:
+                    type: integer
+                  skipped_rows:
+                    type: integer
+                  skipped_details:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Invalid file or format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /rooms/stats:
     get:
@@ -463,6 +867,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    delete:
+      summary: Delete room
+      description: Only SUPER_ADMIN and STAFF can delete rooms
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Room deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /room-requests:
     post:
       summary: Create a room request
@@ -474,7 +912,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RoomRequest'
+              type: object
+              required:
+                - check_in_date
+                - check_out_date
+                - number_of_people
+                - purpose
+                - place
+              properties:
+                check_in_date:
+                  type: string
+                  format: date-time
+                check_out_date:
+                  type: string
+                  format: date-time
+                number_of_people:
+                  $ref: '#/components/schemas/PeopleCount'
+                purpose:
+                  type: string
+                place:
+                  type: string
+                special_requests:
+                  type: string
+                reference:
+                  type: string
       responses:
         '201':
           description: Room request created successfully
@@ -508,13 +969,23 @@ paths:
             type: string
       responses:
         '200':
-          description: List of room requests
+          description: List of room requests with details
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/RoomRequest'
+                  type: object
+                  allOf:
+                    - $ref: '#/components/schemas/RoomRequest'
+                    - type: object
+                      properties:
+                        user:
+                          $ref: '#/components/schemas/User'
+                        room:
+                          $ref: '#/components/schemas/Room'
+                        assignment:
+                          $ref: '#/components/schemas/RoomAssignment'
         '403':
           description: Insufficient permissions
           content:
@@ -563,6 +1034,124 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /room-assignments:
+    post:
+      summary: Assign room to user
+      description: Only SUPER_ADMIN and STAFF can assign rooms
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+                - user_id
+                - request_id
+                - check_in_date
+                - check_out_date
+              properties:
+                room_id:
+                  type: string
+                  format: objectId
+                user_id:
+                  type: string
+                  format: objectId
+                request_id:
+                  type: string
+                  format: objectId
+                check_in_date:
+                  type: string
+                  format: date-time
+                check_out_date:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Room assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomAssignment'
+        '400':
+          description: Room not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /room-assignments/{id}/check-in:
+    put:
+      summary: Check in to assigned room
+      description: Only SUPER_ADMIN and STAFF can perform check-in
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check-in successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomAssignment'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found or already checked in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /room-assignments/{id}/check-out:
+    put:
+      summary: Check out from assigned room
+      description: Only SUPER_ADMIN and STAFF can perform check-out
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check-out successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomAssignment'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found, not checked in, or already checked out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /food-passes/generate:
     post:
       summary: Generate food passes
@@ -580,6 +1169,8 @@ paths:
                 - member_names
                 - start_date
                 - end_date
+                - dining_hall
+                - color_code
               properties:
                 user_id:
                   type: string
@@ -594,6 +1185,10 @@ paths:
                 end_date:
                   type: string
                   format: date-time
+                dining_hall:
+                  type: string
+                color_code:
+                  type: string
       responses:
         '201':
           description: Food passes generated successfully
@@ -691,4 +1286,207 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error' 
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/{id}:
+    put:
+      summary: Update food pass
+      description: Only SUPER_ADMIN and STAFF can update food passes
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                member_name:
+                  type: string
+                meal_type:
+                  type: string
+                  enum: [BREAKFAST, LUNCH, DINNER]
+                date:
+                  type: string
+                  format: date-time
+                is_used:
+                  type: boolean
+                dining_hall:
+                  type: string
+                color_code:
+                  type: string
+                used_at:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Food pass updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FoodPass'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Food pass not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/food-pass-category:
+    post:
+      summary: Create food pass category
+      description: Only SUPER_ADMIN can create food pass categories
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - building_name
+                - color_code
+              properties:
+                building_name:
+                  type: string
+                color_code:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  category:
+                    $ref: '#/components/schemas/FoodPassCategory'
+        '400':
+          description: Invalid color code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/get-pass-categories:
+    get:
+      summary: Get all food pass categories
+      description: Only SUPER_ADMIN can view food pass categories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FoodPassCategory'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/update-pass-category/{id}:
+    put:
+      summary: Update food pass category
+      description: Only SUPER_ADMIN can update food pass categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                building_name:
+                  type: string
+                color_code:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid color code or no fields to update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /food-passes/delete-pass-category/{id}:
+    delete:
+      summary: Delete food pass category
+      description: Only SUPER_ADMIN can delete food pass categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

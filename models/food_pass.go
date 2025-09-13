@@ -34,8 +34,8 @@ type GenerateFoodPassRequest struct {
 	MemberNames []string           `json:"member_names" binding:"required"`
 	StartDate   time.Time          `json:"start_date" binding:"required"`
 	EndDate     time.Time          `json:"end_date" binding:"required"`
-	DiningHall  string             `json:"dining_hall" binding:"required"`
-	ColorCode   string             `json:"color_code" binding:"required"`
+	DiningHall  string             `json:"dining_hall"`
+	ColorCode   string             `json:"color_code"`
 }
 
 type ScanFoodPassRequest struct {
