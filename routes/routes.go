@@ -13,8 +13,8 @@ import (
 
 func SetupRoutes(r *gin.Engine) {
 
-	origin := "https://utara-app.web.app"
-	// origin := "http://localhost:57672" // Change this to your frontend URL
+	//origin := "https://utara-app.web.app"
+	origin := "http://localhost:55390" // Change this to your frontend URL
 	// CORS config
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{origin},
@@ -86,15 +86,10 @@ func SetupRoutes(r *gin.Engine) {
 			foodPasses.GET("/user/:user_id", handlers.GetUserFoodPasses)
 			foodPasses.POST("/scan", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ScanFoodPass)
 			foodPasses.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateFoodPass)
-		}
-
-		// Food pass category routes
-		category := protected.Group("/food-pass-category")
-		{
-			category.POST("/food-pass-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateFoodPassCategory)
-			category.GET("/get-pass-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetFoodPassCategories)
-			category.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
-			category.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
+			foodPasses.POST("/food-pass-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateFoodPassCategory)
+			foodPasses.GET("/get-pass-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetFoodPassCategories)
+			foodPasses.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
+			foodPasses.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
 		}
 	}
 }
