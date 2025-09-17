@@ -227,7 +227,13 @@ func GetRooms(c *gin.Context) {
 
 	// Apply filters if provided
 	if floor := c.Query("floor"); floor != "" {
-		filter["floor"] = floor
+		// floor will be int, so convert string to int
+		floorInt, err := strconv.Atoi(floor)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid floor value"})
+			return
+		}
+		filter["floor"] = floorInt
 	}
 	if roomType := c.Query("type"); roomType != "" {
 		filter["type"] = roomType

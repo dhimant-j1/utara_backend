@@ -14,7 +14,7 @@ import (
 func SetupRoutes(r *gin.Engine) {
 
 	origin := "https://utara-app.web.app"
-	//origin := "http://localhost:55390" // Change this to your frontend URL
+	// origin := "http://localhost:63158" // Change this to your frontend URL
 	// CORS config
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{origin},
