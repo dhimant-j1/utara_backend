@@ -61,6 +61,14 @@ func SetupRoutes(r *gin.Engine) {
 			rooms.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateRoom)
 			rooms.POST("/upload-rooms", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.CreateMultipleRooms)
 			rooms.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.DeleteRoom)
+			rooms.GET("/buildings", handlers.GetBuildings)
+			rooms.GET("/floors", handlers.GetFloors)
+
+			//Room Category
+			rooms.POST("/create-room-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateRoomCategory)
+			rooms.GET("/get-room-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetRoomCategories)
+			rooms.PUT("/update-room-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateRoomCategory)
+			rooms.DELETE("/delete-room-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteRoomCategory)
 		}
 
 		// Room request routes
@@ -79,15 +87,6 @@ func SetupRoutes(r *gin.Engine) {
 			assignments.PUT("/:id/check-out", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.CheckOutRoom)
 		}
 
-		// Room category routes
-		roomCategory := protected.Group("/room-category")
-		{
-			roomCategory.POST("/room-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.RoomCategory)
-			roomCategory.GET("/get-room-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetRoomCategories)
-			roomCategory.PUT("/update-room-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateRoomCategory)
-			roomCategory.DELETE("/delete-room-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteRoomCategory)
-		}
-
 		// Food pass routes
 		foodPasses := protected.Group("/food-passes")
 		{
@@ -95,15 +94,12 @@ func SetupRoutes(r *gin.Engine) {
 			foodPasses.GET("/user/:user_id", handlers.GetUserFoodPasses)
 			foodPasses.POST("/scan", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ScanFoodPass)
 			foodPasses.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdateFoodPass)
-		}
 
-		// Food pass category routes
-		category := protected.Group("/food-pass-category")
-		{
-			category.POST("/food-pass-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateFoodPassCategory)
-			category.GET("/get-pass-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetFoodPassCategories)
-			category.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
-			category.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
+			//Food pass category
+			foodPasses.POST("/food-pass-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateFoodPassCategory)
+			foodPasses.GET("/get-pass-categories", middleware.RequireRole(models.RoleSuperAdmin), handlers.GetFoodPassCategories)
+			foodPasses.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
+			foodPasses.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
 		}
 	}
 }

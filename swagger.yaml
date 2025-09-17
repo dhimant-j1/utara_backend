@@ -160,6 +160,9 @@ components:
           type: boolean
         building:
           type: string
+        room_category_id:
+          type: string
+          description: ID of the associated room category
         created_at:
           type: string
           format: date-time
@@ -316,6 +319,70 @@ components:
         created_at:
           type: string
           format: date-time
+
+    RoomCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectId
+        room_name:
+          type: string
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomImage'
+        price:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateRoomRequest:
+      type: object
+      required:
+        - room_number
+        - floor
+        - type
+        - beds
+        - building
+      properties:
+        room_number:
+          type: string
+        floor:
+          type: integer
+        type:
+          type: string
+          enum: [SHREEHARIPLUS, SHREEHARI, SARJUPLUS, SARJU, NEELKANTHPLUS, NEELKANTH]
+        beds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bed'
+        has_geyser:
+          type: boolean
+          default: false
+        has_ac:
+          type: boolean
+          default: false
+        has_sofa_set:
+          type: boolean
+          default: false
+        sofa_set_quantity:
+          type: integer
+          default: 0
+        room_category_id:
+          type: string
+          description: ID of the room category to assign to this room
+        extra_amenities:
+          type: string
+        is_visible:
+          type: boolean
+          default: true
+        building:
+          type: string
 
     Error:
       type: object
@@ -649,7 +716,172 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: User not found
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/create-room-category:
+    post:
+      summary: Create a new room category
+      description: Only SUPER_ADMIN can create room categories
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_name
+                - price
+              properties:
+                room_name:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RoomImage'
+                price:
+                  type: string
+      responses:
+        '201':
+          description: Room category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  category:
+                    $ref: '#/components/schemas/RoomCategory'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/get-room-categories:
+    get:
+      summary: Get all room categories
+      description: Only SUPER_ADMIN can view room categories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of room categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoomCategory'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/update-room-category/{id}:
+    put:
+      summary: Update room category
+      description: Only SUPER_ADMIN can update room categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                room_name:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RoomImage'
+                price:
+                  type: string
+      responses:
+        '200':
+          description: Room category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Room category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /rooms/delete-room-category/{id}:
+    delete:
+      summary: Delete room category
+      description: Only SUPER_ADMIN can delete room categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Room category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Room category not found
           content:
             application/json:
               schema:
@@ -666,7 +898,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Room'
+              $ref: '#/components/schemas/CreateRoomRequest'
       responses:
         '201':
           description: Room created successfully
@@ -802,6 +1034,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /rooms/buildings:
+    get:
+      summary: Get all buildings
+      description: Retrieve a list of all unique buildings that have rooms
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of buildings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildings:
+                    type: array
+                    items:
+                      type: string
+                    description: List of unique building names
+                  count:
+                    type: integer
+                    description: Number of buildings
+        '500':
+          description: Internal server error
+
+  /rooms/floors:
+    get:
+      summary: Get floors for a building
+      description: Retrieve a list of floors for a specific building
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: building
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Building name to get floors for
+      responses:
+        '200':
+          description: List of floors retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  building:
+                    type: string
+                    description: Building name
+                  floors:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of floor numbers
+                  count:
+                    type: integer
+                    description: Number of floors
+        '400':
+          description: Bad request - building parameter is required
+        '500':
+          description: Internal server error
 
   /rooms/stats:
     get:

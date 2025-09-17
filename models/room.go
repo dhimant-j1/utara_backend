@@ -48,39 +48,39 @@ type Room struct {
 	SofaSetQuantity int                `json:"sofa_set_quantity,omitempty" bson:"sofa_set_quantity,omitempty"`
 	ExtraAmenities  string             `json:"extra_amenities" bson:"extra_amenities"`
 	IsVisible       bool               `json:"is_visible" bson:"is_visible"`
-	Images          []RoomImage        `json:"images" bson:"images"`
 	IsOccupied      bool               `json:"is_occupied" bson:"is_occupied"`
 	Building        string             `bson:"building" json:"building"`
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
+	RoomCategoryId  string             `json:"room_category_id,omitempty" bson:"room_category_id,omitempty"`
 }
 
 type CreateRoomRequest struct {
-	RoomNumber      string      `json:"room_number" binding:"required"`
-	Floor           int         `json:"floor" binding:"required"`
-	Type            RoomType    `json:"type" binding:"required"`
-	Beds            []Bed       `json:"beds" binding:"required"`
-	HasGeyser       bool        `json:"has_geyser"`
-	HasAC           bool        `json:"has_ac"`
-	HasSofaSet      bool        `json:"has_sofa_set"`
-	SofaSetQuantity int         `json:"sofa_set_quantity"`
-	ExtraAmenities  string      `json:"extra_amenities"`
-	IsVisible       bool        `json:"is_visible"`
-	Images          []RoomImage `json:"images"`
+	RoomNumber      string   `json:"room_number" binding:"required"`
+	Floor           int      `json:"floor" binding:"required"`
+	Type            RoomType `json:"type" binding:"required"`
+	Beds            []Bed    `json:"beds" binding:"required"`
+	HasGeyser       bool     `json:"has_geyser"`
+	HasAC           bool     `json:"has_ac"`
+	HasSofaSet      bool     `json:"has_sofa_set"`
+	SofaSetQuantity int      `json:"sofa_set_quantity"`
+	RoomCategoryId  string   `json:"room_category_id,omitempty"`
+	ExtraAmenities  string   `json:"extra_amenities"`
+	IsVisible       bool     `json:"is_visible"`
+	Building        string   `json:"building"`
 }
 
 type UpdateRoomRequest struct {
-	RoomNumber      *string     `json:"room_number"`
-	Floor           *int        `json:"floor"`
-	Type            *RoomType   `json:"type"`
-	Beds            []Bed       `json:"beds"`
-	HasGeyser       *bool       `json:"has_geyser"`
-	HasAC           *bool       `json:"has_ac"`
-	HasSofaSet      *bool       `json:"has_sofa_set"`
-	SofaSetQuantity *int        `json:"sofa_set_quantity"`
-	ExtraAmenities  *string     `json:"extra_amenities"`
-	IsVisible       *bool       `json:"is_visible"`
-	Images          []RoomImage `json:"images"`
+	RoomNumber      *string   `json:"room_number"`
+	Floor           *int      `json:"floor"`
+	Type            *RoomType `json:"type"`
+	Beds            []Bed     `json:"beds"`
+	HasGeyser       *bool     `json:"has_geyser"`
+	HasAC           *bool     `json:"has_ac"`
+	HasSofaSet      *bool     `json:"has_sofa_set"`
+	SofaSetQuantity *int      `json:"sofa_set_quantity"`
+	ExtraAmenities  *string   `json:"extra_amenities"`
+	IsVisible       *bool     `json:"is_visible"`
 }
 
 type RoomCategory struct {

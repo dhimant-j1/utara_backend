@@ -46,10 +46,11 @@ func CreateRoom(c *gin.Context) {
 		SofaSetQuantity: req.SofaSetQuantity,
 		ExtraAmenities:  req.ExtraAmenities,
 		IsVisible:       req.IsVisible,
-		Images:          req.Images,
+		Building:        req.Building,
 		IsOccupied:      false,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+		RoomCategoryId:  req.RoomCategoryId,
 	}
 
 	result, err := config.DB.Collection("rooms").InsertOne(context.Background(), room)
@@ -177,7 +178,6 @@ func CreateMultipleRooms(c *gin.Context) {
 			SofaSetQuantity: sofaSetQty,
 			ExtraAmenities:  data["extra_amenities"],
 			IsVisible:       isVisible,
-			Images:          images,
 			IsOccupied:      false,
 			Building:        data["building"],
 			CreatedAt:       time.Now(),
@@ -231,6 +231,9 @@ func GetRooms(c *gin.Context) {
 	}
 	if roomType := c.Query("type"); roomType != "" {
 		filter["type"] = roomType
+	}
+	if building := c.Query("building"); building != "" {
+		filter["building"] = building
 	}
 	if isVisible := c.Query("is_visible"); isVisible != "" {
 		filter["is_visible"] = isVisible == "true"
@@ -369,9 +372,6 @@ func UpdateRoom(c *gin.Context) {
 	if req.IsVisible != nil {
 		update["$set"].(bson.M)["is_visible"] = *req.IsVisible
 	}
-	if req.Images != nil {
-		update["$set"].(bson.M)["images"] = req.Images
-	}
 
 	result := config.DB.Collection("rooms").FindOneAndUpdate(
 		context.Background(),
@@ -442,7 +442,7 @@ func DeleteRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Room deleted successfully"})
 }
 
-func RoomCategory(c *gin.Context) {
+func CreateRoomCategory(c *gin.Context) {
 	var req models.RoomCategory
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -521,26 +521,131 @@ func UpdateRoomCategory(c *gin.Context) {
 
 func DeleteRoomCategory(c *gin.Context) {
 	id := c.Param("id")
-
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room category ID"})
 		return
 	}
 
-	res, err := config.DB.Collection("room_category").DeleteOne(
-		context.Background(),
-		bson.M{"_id": objectID},
-	)
+	result, err := config.DB.Collection("room_categories").DeleteOne(context.Background(), bson.M{"_id": objectID})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting category"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting room category"})
 		return
 	}
 
-	if res.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Room category not found"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Room category deleted successfully"})
+}
+
+// GetBuildings returns a list of unique buildings
+func GetBuildings(c *gin.Context) {
+	// Use MongoDB aggregation to get distinct buildings
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"building":   bson.M{"$ne": ""},
+				"is_visible": true,
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id": "$building",
+			},
+		},
+		{
+			"$sort": bson.M{
+				"_id": 1,
+			},
+		},
+	}
+
+	cursor, err := config.DB.Collection("rooms").Aggregate(context.Background(), pipeline)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching buildings"})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var buildings []string
+	for cursor.Next(context.Background()) {
+		var result struct {
+			ID string `bson:"_id"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			continue
+		}
+		if result.ID != "" {
+			buildings = append(buildings, result.ID)
+		}
+	}
+
+	if buildings == nil {
+		buildings = []string{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"buildings": buildings,
+		"count":     len(buildings),
+	})
+}
+
+// GetFloors returns a list of floors for a specific building
+func GetFloors(c *gin.Context) {
+	building := c.Query("building")
+	if building == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Building parameter is required"})
+		return
+	}
+
+	// Use MongoDB aggregation to get distinct floors for the specified building
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"building":   building,
+				"is_visible": true,
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id": "$floor",
+			},
+		},
+		{
+			"$sort": bson.M{
+				"_id": 1,
+			},
+		},
+	}
+
+	cursor, err := config.DB.Collection("rooms").Aggregate(context.Background(), pipeline)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching floors"})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var floors []int
+	for cursor.Next(context.Background()) {
+		var result struct {
+			ID int `bson:"_id"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			continue
+		}
+		floors = append(floors, result.ID)
+	}
+
+	if floors == nil {
+		floors = []int{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"building": building,
+		"floors":   floors,
+		"count":    len(floors),
+	})
 }
