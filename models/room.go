@@ -82,3 +82,12 @@ type UpdateRoomRequest struct {
 	IsVisible       *bool       `json:"is_visible"`
 	Images          []RoomImage `json:"images"`
 }
+
+type RoomCategory struct {
+	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	RoomName  string             `json:"room_name" bson:"room_name"`
+	Images    []RoomImage        `json:"images"`
+	Price     string             `json:"price" bson:"price"`
+	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
+}

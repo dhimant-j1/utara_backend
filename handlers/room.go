@@ -441,3 +441,106 @@ func DeleteRoom(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Room deleted successfully"})
 }
+
+func RoomCategory(c *gin.Context) {
+	var req models.RoomCategory
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req.ID = primitive.NewObjectID()
+	req.CreatedAt = time.Now()
+
+	_, err := config.DB.Collection("room_category").InsertOne(context.Background(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating category"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Room category created successfully",
+		"category": req,
+	})
+}
+
+func GetRoomCategories(c *gin.Context) {
+	cursor, err := config.DB.Collection("room_category").Find(context.Background(), bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching categories"})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var categories []models.RoomCategory
+	if err := cursor.All(context.Background(), &categories); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding categories"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"categories": categories})
+}
+
+func UpdateRoomCategory(c *gin.Context) {
+	id := c.Param("id")
+
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req["updated_at"] = time.Now()
+
+	update := bson.M{"$set": req}
+
+	res, err := config.DB.Collection("room_category").UpdateOne(
+		context.Background(),
+		bson.M{"_id": objectID},
+		update,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating category"})
+		return
+	}
+
+	if res.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Room category updated successfully"})
+}
+
+func DeleteRoomCategory(c *gin.Context) {
+	id := c.Param("id")
+
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	res, err := config.DB.Collection("room_category").DeleteOne(
+		context.Background(),
+		bson.M{"_id": objectID},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting category"})
+		return
+	}
+
+	if res.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Room category deleted successfully"})
+}
