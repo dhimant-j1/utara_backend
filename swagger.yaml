@@ -21,7 +21,7 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         user_name:
           type: string
         email:
@@ -94,10 +94,10 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         user_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         role:
           type: string
         modules:
@@ -128,7 +128,7 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         room_number:
           type: string
         floor:
@@ -186,6 +186,7 @@ components:
           type: string
         description:
           type: string
+          description: Image description
         uploaded_at:
           type: string
           format: date-time
@@ -195,10 +196,10 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         user_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         name:
           type: string
         place:
@@ -220,7 +221,7 @@ components:
           enum: [PENDING, APPROVED, REJECTED]
         processed_by:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         processed_at:
           type: string
           format: date-time
@@ -238,16 +239,16 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         room_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         user_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         request_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         check_in_date:
           type: string
           format: date-time
@@ -256,7 +257,7 @@ components:
           format: date-time
         assigned_by:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         assigned_at:
           type: string
           format: date-time
@@ -276,10 +277,10 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         user_id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         member_name:
           type: string
         meal_type:
@@ -301,7 +302,7 @@ components:
           format: date-time
         created_by:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         created_at:
           type: string
           format: date-time
@@ -311,7 +312,7 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         building_name:
           type: string
         color_code:
@@ -325,7 +326,7 @@ components:
       properties:
         id:
           type: string
-          format: objectId
+          description: MongoDB ObjectId
         room_name:
           type: string
         images:
@@ -1307,7 +1308,6 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
                   allOf:
                     - $ref: '#/components/schemas/RoomRequest'
                     - type: object
@@ -1351,7 +1351,7 @@ paths:
                   enum: [APPROVED, REJECTED]
                 room_id:
                   type: string
-                  format: objectId
+                  description: MongoDB ObjectId
       responses:
         '200':
           description: Request processed successfully
@@ -1387,13 +1387,13 @@ paths:
               properties:
                 room_id:
                   type: string
-                  format: objectId
+                  description: MongoDB ObjectId
                 user_id:
                   type: string
-                  format: objectId
+                  description: MongoDB ObjectId
                 request_id:
                   type: string
-                  format: objectId
+                  description: MongoDB ObjectId
                 check_in_date:
                   type: string
                   format: date-time
@@ -1685,63 +1685,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FoodPass'
-        '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Food pass not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /food-passes/{id}:
-    put:
-      summary: Update food pass
-      description: Only SUPER_ADMIN and STAFF can update food passes
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                member_name:
-                  type: string
-                meal_type:
-                  type: string
-                  enum: [BREAKFAST, LUNCH, DINNER]
-                date:
-                  type: string
-                  format: date-time
-                dining_hall:
-                  type: string
-                color_code:
-                  type: string
-      responses:
-        '200':
-          description: Food pass updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FoodPass'
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '403':
           description: Insufficient permissions
           content:
