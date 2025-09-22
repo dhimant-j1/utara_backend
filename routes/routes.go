@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"strings"
 	"time"
 	"utara_backend/handlers"
 	"utara_backend/middleware"
@@ -13,11 +14,13 @@ import (
 
 func SetupRoutes(r *gin.Engine) {
 
-	origin := "https://utara-app.web.app"
-	// origin := "http://localhost:63158" // Change this to your frontend URL
+	// origin := "https://utara-app.web.app"
+	// origin := "http://localhost:53505" // Change this to your frontend URL
 	// CORS config
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{origin},
+		AllowOriginFunc: func(origin string) bool {
+			return strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "https://utara-app.web.app")
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
