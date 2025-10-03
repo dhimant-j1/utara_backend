@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -341,7 +343,39 @@ func CheckInRoom(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, assignment)
+	// --- INTEGRATION OF FOOD PASS GENERATION ---
+
+	staffID, _ := c.Get("user_id")
+	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
+
+	foodPassRequest := models.GenerateFoodPassRequest{
+		UserID:      assignment.UserID,
+		MemberNames: assignment.GuestNames,
+		StartDate:   assignment.CheckInDate,
+		EndDate:     assignment.CheckOutDate,
+		DiningHall:  assignment.DiningHallPreference,
+		ColorCode:   "",
+	}	
+
+	totalPasses, foodPassErr := ExecuteFoodPassGeneration(foodPassRequest, staffObjID)
+
+	if foodPassErr != nil {
+		log.Printf("Warning: Food pass generation failed for assignment %s: %v", id.Hex(), foodPassErr)
+
+		c.JSON(http.StatusOK, gin.H{
+			"assignment":             assignment,
+			"warning":                fmt.Sprintf("Room checked in successfully, but FAILED to generate food passes: %v", foodPassErr.Error()),
+			"total_passes_generated": 0,
+		})
+		return
+	}
+	// --- END INTEGRATION ---
+
+	c.JSON(http.StatusOK, gin.H{
+		"assignment":             assignment,
+		"message":                "Room checked in successfully. Food passes generated.",
+		"total_passes_generated": totalPasses,
+	})
 }
 
 // CheckOutRoom marks a room assignment as checked out
@@ -388,29 +422,15 @@ func CheckOutRoom(c *gin.Context) {
 		return
 	}
 
-	// Expire all unused & active food passes for this user
-	_, err = config.DB.Collection("food_passes").UpdateMany(
+	// Delete all unused & not expired food passes for this user
+	_, err = config.DB.Collection("food_passes").DeleteMany(
 		context.Background(),
-		bson.M{"user_id": assignment.UserID, "is_used": false, "is_expired": bson.M{"$ne": true}},
-		bson.M{"$set": bson.M{
-			"is_expired": true,
-			"expired_at": now,
-		}},
+		bson.M{"user_id": assignment.UserID, "is_expired": bson.M{"$ne": true}},
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error expiring food passes"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting food passes"})
 		return
 	}
-
-	// Delete all unused & not expired food passes for this user
-	// _, err = config.DB.Collection("food_passes").DeleteMany(
-	// 	context.Background(),
-	// 	bson.M{"user_id": assignment.UserID, "is_expired": bson.M{"$ne": true}},
-	// )
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting food passes"})
-	// 	return
-	// }
 
 	c.JSON(http.StatusOK, assignment)
 }

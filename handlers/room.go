@@ -104,11 +104,23 @@ func CreateMultipleRooms(c *gin.Context) {
 			data[header] = row[i]
 		}
 
-		// Validate RoomType
-		roomType := models.RoomType(strings.TrimSpace(data["type"]))
-		switch roomType {
-		case models.ShreeHariPlus, models.ShreeHari, models.SarjuPlus, models.Sarju, models.NeelkanthPlus, models.Neelkanth:
-			// Valid type
+		// Normalize the room type string from CSV
+		roomTypeStr := strings.ToLower(strings.TrimSpace(data["type"]))
+
+		var roomType models.RoomType
+		switch roomTypeStr {
+		case "shreehariplus":
+			roomType = models.ShreeHariPlus
+		case "shreehari":
+			roomType = models.ShreeHari
+		case "sarjuplus":
+			roomType = models.SarjuPlus
+		case "sarju":
+			roomType = models.Sarju
+		case "neelkanthplus":
+			roomType = models.NeelkanthPlus
+		case "neelkanth":
+			roomType = models.Neelkanth
 		default:
 			skippedRows = append(skippedRows, "Invalid room type for room_number: "+data["room_number"])
 			continue // Skip this row

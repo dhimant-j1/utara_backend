@@ -24,6 +24,8 @@ type User struct {
 	IsImportant bool               `json:"is_important" bson:"is_important"`
 	PhoneNumber string             `json:"phone_number" bson:"phone_number"`
 	UserType    string             `json:"user_type" bson:"user_type"`
+	Otp         string             `json:"otp,omitempty" bson:"otp,omitempty"`
+	OtpExpiry   time.Time          `json:"otp_expiry,omitempty" bson:"otp_expiry,omitempty"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -60,4 +62,24 @@ type UserModuleAccess struct {
 	Modules   map[string]bool    `bson:"modules" json:"modules"`
 	CreatedAt time.Time          `bson:"created" json:"created"`
 	UpdatedAt time.Time          `bson:"updated" json:"updated"`
+}
+
+type UserLoginRequest struct {
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	Password    string `json:"password" binding:"required,min=6"`
+}
+
+type VerifyOtpRequest struct {
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	Otp         string `json:"otp" binding:"required,len=6"`
+}
+
+type ForgotPasswordRequest struct {
+	PhoneNumber string `json:"phone_number" binding:"required"`
+}
+
+type ResetPasswordRequest struct {
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	Otp         string `json:"otp" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
 }

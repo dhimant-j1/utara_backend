@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron" // New dependency
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,48 +19,34 @@ import (
 	"utara_backend/utils"
 )
 
-// GenerateFoodPasses generates food passes for a user and their family members
-func GenerateFoodPasses(c *gin.Context) {
-	var req models.GenerateFoodPassRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	staffID, _ := c.Get("user_id")
-	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
-
-	// Check if user exists and is active
+// ExecuteFoodPassGeneration performs the core pass generation logic.
+func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primitive.ObjectID) (int, error) {
+	// Check if user exists
 	var user models.User
 	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{
 		"_id": req.UserID,
 	}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
+			return 0, fmt.Errorf("user not found: %w", err)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user"})
-		return
+		return 0, fmt.Errorf("error fetching user: %w", err)
 	}
 
 	var passes []models.FoodPass
 	currentDate := req.StartDate
+	colorCode := req.ColorCode
 
-	// Generate passes for each day between start and end date
 	for !currentDate.After(req.EndDate) {
-		// Generate passes for each meal type
 		mealTypes := []models.MealType{models.Breakfast, models.Lunch, models.Dinner}
 
 		for _, memberName := range req.MemberNames {
 			for _, mealType := range mealTypes {
 				id := primitive.NewObjectID()
-				// Generate QR code data
 
 				qrCode, err := utils.GenerateQRCode(id.Hex())
 				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating QR code"})
-					return
+					return 0, fmt.Errorf("error generating QR code: %w", err)
 				}
 
 				if req.DiningHall != "" {
@@ -66,10 +55,9 @@ func GenerateFoodPasses(c *gin.Context) {
 						"building_name": req.DiningHall,
 					}).Decode(&category)
 					if err != nil {
-						c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching food pass category"})
-						return
+						return 0, fmt.Errorf("error fetching food pass category: %w", err)
 					}
-					req.ColorCode = category.ColorCode
+					colorCode = category.ColorCode
 				}
 
 				pass := models.FoodPass{
@@ -81,8 +69,8 @@ func GenerateFoodPasses(c *gin.Context) {
 					QRCode:     qrCode,
 					IsUsed:     false,
 					DiningHall: req.DiningHall,
-					ColorCode:  req.ColorCode,
-					CreatedBy:  staffObjID,
+					ColorCode:  colorCode,
+					CreatedBy:  staffID,
 					CreatedAt:  time.Now(),
 				}
 				passes = append(passes, pass)
@@ -91,7 +79,6 @@ func GenerateFoodPasses(c *gin.Context) {
 		currentDate = currentDate.AddDate(0, 0, 1)
 	}
 
-	// Insert all passes
 	var passInterfaces []interface{}
 	for _, pass := range passes {
 		passInterfaces = append(passInterfaces, pass)
@@ -99,15 +86,132 @@ func GenerateFoodPasses(c *gin.Context) {
 
 	_, err = config.DB.Collection("food_passes").InsertMany(context.Background(), passInterfaces)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating food passes"})
+		return 0, fmt.Errorf("error inserting food passes: %w", err)
+	}
+
+	return len(passes), nil
+}
+
+// GenerateFoodPasses generates food passes for a user and their family members (API Handler)
+func GenerateFoodPasses(c *gin.Context) {
+	var req models.GenerateFoodPassRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	staffID, _ := c.Get("user_id")
+	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
+
+	totalPasses, err := ExecuteFoodPassGeneration(req, staffObjID)
+
+	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error generating food passes: %v", err.Error())})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":      "Food passes generated successfully",
-		"total_passes": len(passes),
+		"total_passes": totalPasses,
 	})
 }
+
+// GenerateFoodPasses generates food passes for a user and their family members
+// func GenerateFoodPasses(c *gin.Context) {
+// 	var req models.GenerateFoodPassRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	staffID, _ := c.Get("user_id")
+// 	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
+
+// 	// Check if user exists and is active
+// 	var user models.User
+// 	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{
+// 		"_id": req.UserID,
+// 	}).Decode(&user)
+// 	if err != nil {
+// 		if err == mongo.ErrNoDocuments {
+// 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+// 			return
+// 		}
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user"})
+// 		return
+// 	}
+
+// 	var passes []models.FoodPass
+// 	currentDate := req.StartDate
+
+// 	// Generate passes for each day between start and end date
+// 	for !currentDate.After(req.EndDate) {
+// 		// Generate passes for each meal type
+// 		mealTypes := []models.MealType{models.Breakfast, models.Lunch, models.Dinner}
+
+// 		for _, memberName := range req.MemberNames {
+// 			for _, mealType := range mealTypes {
+// 				id := primitive.NewObjectID()
+// 				// Generate QR code data
+
+// 				qrCode, err := utils.GenerateQRCode(id.Hex())
+// 				if err != nil {
+// 					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating QR code"})
+// 					return
+// 				}
+
+// 				if req.DiningHall != "" {
+// 					var category models.FoodPassCategory
+// 					err := config.DB.Collection("food_pass_categories").FindOne(context.Background(), bson.M{
+// 						"building_name": req.DiningHall,
+// 					}).Decode(&category)
+// 					if err != nil {
+// 						c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching food pass category"})
+// 						return
+// 					}
+// 					req.ColorCode = category.ColorCode
+// 				}
+
+// 				pass := models.FoodPass{
+// 					ID:         id,
+// 					UserID:     req.UserID,
+// 					MemberName: memberName,
+// 					MealType:   mealType,
+// 					Date:       currentDate,
+// 					QRCode:     qrCode,
+// 					IsUsed:     false,
+// 					DiningHall: req.DiningHall,
+// 					ColorCode:  req.ColorCode,
+// 					CreatedBy:  staffObjID,
+// 					CreatedAt:  time.Now(),
+// 				}
+// 				passes = append(passes, pass)
+// 			}
+// 		}
+// 		currentDate = currentDate.AddDate(0, 0, 1)
+// 	}
+
+// 	// Insert all passes
+// 	var passInterfaces []interface{}
+// 	for _, pass := range passes {
+// 		passInterfaces = append(passInterfaces, pass)
+// 	}
+
+// 	_, err = config.DB.Collection("food_passes").InsertMany(context.Background(), passInterfaces)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating food passes"})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusCreated, gin.H{
+// 		"message":      "Food passes generated successfully",
+// 		"total_passes": len(passes),
+// 	})
+// }
 
 // GetUserFoodPasses returns food passes for a specific user
 func GetUserFoodPasses(c *gin.Context) {
@@ -385,4 +489,51 @@ func DeleteFoodPassCategory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+}
+
+func ExecuteFoodPassCleanup() (int64, error) {
+
+	now := time.Now().In(time.UTC)
+	year, month, day := now.Date()
+
+	cutoffTime := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+
+	filter := bson.M{
+		"date": bson.M{"$lt": cutoffTime},
+	}
+
+	deleteResult, err := config.DB.Collection("food_passes").DeleteMany(
+		context.Background(),
+		filter,
+	)
+
+	if err != nil {
+		return 0, fmt.Errorf("error deleting expired food passes: %w", err)
+	}
+
+	return deleteResult.DeletedCount, nil
+}
+
+func StartAutomaticCleanup() {
+
+	s := gocron.NewScheduler(time.Local)
+
+	_, err := s.Every(1).Day().At("16:35").Do(func() {
+		log.Println("Starting automatic cleanup of expired food passes...")
+
+		deletedCount, cleanupErr := ExecuteFoodPassCleanup()
+
+		if cleanupErr != nil {
+			log.Printf("ERROR: Automatic food pass cleanup failed: %v", cleanupErr)
+			return
+		}
+		log.Printf("SUCCESS: Automatic food pass cleanup deleted %d expired passes.", deletedCount)
+	})
+
+	if err != nil {
+		log.Fatalf("Could not schedule cleanup job: %v", err)
+	}
+
+	s.StartAsync()
+	log.Println("Cleanup scheduler started. Next run scheduled for 02:05 in the local timezone.")
 }

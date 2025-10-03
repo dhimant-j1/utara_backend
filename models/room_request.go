@@ -41,18 +41,20 @@ type RoomRequest struct {
 }
 
 type RoomAssignment struct {
-	ID           primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	RoomID       primitive.ObjectID `json:"room_id" bson:"room_id"`
-	UserID       primitive.ObjectID `json:"user_id" bson:"user_id"`
-	RequestID    primitive.ObjectID `json:"request_id" bson:"request_id"`
-	CheckInDate  time.Time          `json:"check_in_date" bson:"check_in_date"`
-	CheckOutDate time.Time          `json:"check_out_date" bson:"check_out_date"`
-	AssignedBy   primitive.ObjectID `json:"assigned_by" bson:"assigned_by"`
-	AssignedAt   time.Time          `json:"assigned_at" bson:"assigned_at"`
-	CheckedIn    bool               `json:"checked_in" bson:"checked_in"`
-	CheckedInAt  *time.Time         `json:"checked_in_at,omitempty" bson:"checked_in_at,omitempty"`
-	CheckedOut   bool               `json:"checked_out" bson:"checked_out"`
-	CheckedOutAt *time.Time         `json:"checked_out_at,omitempty" bson:"checked_out_at,omitempty"`
+	ID                   primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	RoomID               primitive.ObjectID `json:"room_id" bson:"room_id"`
+	UserID               primitive.ObjectID `json:"user_id" bson:"user_id"`
+	RequestID            primitive.ObjectID `json:"request_id" bson:"request_id"`
+	GuestNames           []string           `bson:"guest_names"` // Stores member names
+	DiningHallPreference string             `bson:"dining_hall_preference"`
+	CheckInDate          time.Time          `json:"check_in_date" bson:"check_in_date"`
+	CheckOutDate         time.Time          `json:"check_out_date" bson:"check_out_date"`
+	AssignedBy           primitive.ObjectID `json:"assigned_by" bson:"assigned_by"`
+	AssignedAt           time.Time          `json:"assigned_at" bson:"assigned_at"`
+	CheckedIn            bool               `json:"checked_in" bson:"checked_in"`
+	CheckedInAt          *time.Time         `json:"checked_in_at,omitempty" bson:"checked_in_at,omitempty"`
+	CheckedOut           bool               `json:"checked_out" bson:"checked_out"`
+	CheckedOutAt         *time.Time         `json:"checked_out_at,omitempty" bson:"checked_out_at,omitempty"`
 }
 
 type CreateRoomRequestRequest struct {

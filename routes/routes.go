@@ -34,6 +34,7 @@ func SetupRoutes(r *gin.Engine) {
 		auth.POST("/signup", handlers.Signup)
 		auth.POST("/login", handlers.Login)
 		auth.POST("/user-login", handlers.UserLogin)
+		auth.POST("/verify-otp", handlers.VerifyOTP)  
 	}
 
 	// Protected routes

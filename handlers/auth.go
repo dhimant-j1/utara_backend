@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,6 +20,18 @@ import (
 	"utara_backend/config"
 	"utara_backend/models"
 )
+
+func GenerateOTP() string {
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "123456" // fallback
+	}
+	otp := ""
+	for i := 0; i < 6; i++ {
+		otp += fmt.Sprintf("%d", int(b[i])%10)
+	}
+	return otp
+}
 
 func Signup(c *gin.Context) {
 	var req models.SignupRequest
@@ -270,7 +283,7 @@ func Login(c *gin.Context) {
 }
 
 func UserLogin(c *gin.Context) {
-	var req models.LoginRequest
+	var req models.UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -279,8 +292,8 @@ func UserLogin(c *gin.Context) {
 	// Find user with USER role only
 	var user models.User
 	filter := bson.M{
-		"email": req.Email,
-		"role":  models.RoleUser, // Only allow USER role
+		"phone_number": req.PhoneNumber,
+		"role":         models.RoleUser, // Only allow USER role
 	}
 
 	err := config.DB.Collection("users").FindOne(context.Background(), filter).Decode(&user)
@@ -297,6 +310,64 @@ func UserLogin(c *gin.Context) {
 	}
 
 	// Generate JWT token
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	// 	"user_id": user.ID.Hex(),
+	// 	"role":    user.Role,
+	// 	"exp":     time.Now().Add(time.Hour * 24).Unix(),
+	// })
+
+	// tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+	// 	return
+	// }
+
+	// Generate OTP
+	otp := GenerateOTP()
+	otpExpiry := time.Now().Add(5 * time.Minute)
+
+	// Save OTP in DB
+	update := bson.M{
+		"$set": bson.M{
+			"otp":        otp,
+			"otp_expiry": otpExpiry,
+		},
+	}
+	_, err = config.DB.Collection("users").UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving OTP"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OTP sent to registered phone number",
+		"otp":     otp,
+	})
+}
+
+func VerifyOTP(c *gin.Context) {
+	var req models.VerifyOtpRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find user
+	var user models.User
+	filter := bson.M{"phone_number": req.PhoneNumber}
+	err := config.DB.Collection("users").FindOne(context.Background(), filter).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid phone number"})
+		return
+	}
+
+	// Check OTP
+	if user.Otp != req.Otp || time.Now().After(user.OtpExpiry) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired OTP"})
+		return
+	}
+
+	// Generate JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.Hex(),
 		"role":    user.Role,
@@ -309,7 +380,11 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	user.Password = "" // Remove password from response
+	// Clear OTP
+	_, _ = config.DB.Collection("users").UpdateOne(context.Background(), filter,
+		bson.M{"$unset": bson.M{"otp": "", "otp_expiry": ""}})
+
+	user.Password = ""
 	c.JSON(http.StatusOK, models.AuthResponse{
 		Token: tokenString,
 		User:  user,
@@ -487,4 +562,76 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+func ForgotPassword(c *gin.Context) {
+	var req models.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"phone_number": req.PhoneNumber}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	otp := GenerateOTP()
+	otpExpiry := time.Now().Add(5 * time.Minute)
+
+	_, err = config.DB.Collection("users").UpdateOne(
+		context.Background(),
+		bson.M{"_id": user.ID},
+		bson.M{"$set": bson.M{"otp": otp, "otp_expiry": otpExpiry}},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save OTP"})
+		return
+	}
+
+	fmt.Println("OTP for user:", otp)
+
+	c.JSON(http.StatusOK, gin.H{"message": "OTP sent successfully (placeholder)"})
+}
+
+func ResetPassword(c *gin.Context) {
+	var req models.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"phone_number": req.PhoneNumber}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not hash password"})
+		return
+	}
+
+	_, err = config.DB.Collection("users").UpdateOne(
+		context.Background(),
+		bson.M{"_id": user.ID},
+		bson.M{
+			"$set": bson.M{
+				"password":   string(hashedPassword),
+				"updated_at": time.Now(),
+			},
+			"$unset": bson.M{"otp": "", "otp_expiry": ""},
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
