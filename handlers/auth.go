@@ -310,38 +310,22 @@ func UserLogin(c *gin.Context) {
 	}
 
 	// Generate JWT token
-	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-	// 	"user_id": user.ID.Hex(),
-	// 	"role":    user.Role,
-	// 	"exp":     time.Now().Add(time.Hour * 24).Unix(),
-	// })
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID.Hex(),
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+	})
 
-	// tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
-	// 	return
-	// }
-
-	// Generate OTP
-	otp := GenerateOTP()
-	otpExpiry := time.Now().Add(5 * time.Minute)
-
-	// Save OTP in DB
-	update := bson.M{
-		"$set": bson.M{
-			"otp":        otp,
-			"otp_expiry": otpExpiry,
-		},
-	}
-	_, err = config.DB.Collection("users").UpdateOne(context.Background(), filter, update)
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving OTP"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "OTP sent to registered phone number",
-		"otp":     otp,
+	user.Password = "" // Remove password from response
+	c.JSON(http.StatusOK, models.AuthResponse{
+		Token: tokenString,
+		User:  user,
 	})
 }
 
@@ -609,7 +593,6 @@ func ResetPassword(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {

@@ -27,6 +27,7 @@ type RoomRequest struct {
 	Purpose        string             `json:"purpose" bson:"purpose"`
 	UserID         primitive.ObjectID `json:"user_id" bson:"user_id"`
 	Name           string             `json:"name" bson:"name"`
+	FormName       string             `json:"form_name" bson:"form_name"`
 	CheckInDate    time.Time          `json:"check_in_date" bson:"check_in_date"`
 	CheckOutDate   time.Time          `json:"check_out_date" bson:"check_out_date"`
 	NumberOfPeople PeopleCount        `json:"number_of_people" bson:"number_of_people"`
@@ -61,6 +62,7 @@ type CreateRoomRequestRequest struct {
 	CheckInDate    time.Time   `json:"check_in_date" binding:"required"`
 	CheckOutDate   time.Time   `json:"check_out_date" binding:"required"`
 	NumberOfPeople PeopleCount `json:"number_of_people" binding:"required"`
+	FormName       string      `json:"form_name"`
 	//PreferredType   RoomType    `json:"preferred_type" binding:"required"`
 	Purpose         string `json:"purpose" binding:"required"`
 	Place           string `json:"place" binding:"required"`

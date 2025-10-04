@@ -41,6 +41,7 @@ func CreateRoomRequest(c *gin.Context) {
 		Purpose:      req.Purpose,
 		CheckInDate:  req.CheckInDate,
 		CheckOutDate: req.CheckOutDate,
+		FormName:     req.FormName,
 		NumberOfPeople: models.PeopleCount{
 			Male:     req.NumberOfPeople.Male,
 			Female:   req.NumberOfPeople.Female,
