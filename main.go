@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"utara_backend/config"
+	"utara_backend/handlers"
 	"utara_backend/routes"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ import (
 )
 
 func main() {
+	handlers.StartAutomaticCleanup()
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
@@ -36,7 +38,7 @@ func main() {
 	r.GET("/upload", func(c *gin.Context) {
 		c.File("./static/index.html")
 	})
-	
+
 	// Setup routes
 	routes.SetupRoutes(r)
 
