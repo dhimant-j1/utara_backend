@@ -35,6 +35,8 @@ func SetupRoutes(r *gin.Engine) {
 		auth.POST("/login", handlers.Login)
 		auth.POST("/user-login", handlers.UserLogin)
 		auth.POST("/verify-otp", handlers.VerifyOTP)
+		auth.POST("/forgot-password", handlers.ForgotPassword)
+		auth.POST("/reset-password", handlers.ResetPassword)
 	}
 
 	// Protected routes

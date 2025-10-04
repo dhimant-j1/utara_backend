@@ -563,7 +563,7 @@ func ForgotPassword(c *gin.Context) {
 	}
 
 	otp := GenerateOTP()
-	otpExpiry := time.Now().Add(5 * time.Minute)
+	otpExpiry := time.Now().Add(60 * time.Second)
 
 	_, err = config.DB.Collection("users").UpdateOne(
 		context.Background(),
