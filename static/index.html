@@ -220,15 +220,21 @@
                 const formData = new FormData();
                 formData.append("file", file);
 
-                const res = await fetch("/rooms/upload-rooms", {
+                const res = await fetch(`${window.location.origin}/rooms/upload-rooms`, {
                     method: "POST",
                     body: formData,
                     headers: {
-                        "Authorization": `Bearer ${token}`  // ✅ Send token
+                        "Authorization": `Bearer ${token}`
                     }
                 });
 
-                const data = await res.json();
+                let data;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    console.error("Response is not JSON:", e);
+                    data = { message: "Upload response not JSON" };
+                }
 
                 if (!res.ok) {
                     alert(data.message || "Upload failed!");
@@ -238,13 +244,14 @@
 
             } catch (error) {
                 console.error("Error:", error);
-                alert("Network error! Please try again.");
+                alert("Network error! Please make sure the backend is running and page is served via http://localhost:8080/upload");
             } finally {
                 uploadButton.disabled = false;
                 uploadButton.textContent = "Upload";
             }
         });
     </script>
+
 
 </body>
 
