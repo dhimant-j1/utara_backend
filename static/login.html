@@ -118,46 +118,55 @@
     <script>
         const loginForm = document.getElementById("login-form");
 
-        loginForm.addEventListener("submit", (e) => {
+        loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const button = document.querySelector(".login-button");
 
-            fetch("/auth/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ email, password })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.token) {
-                        // Save token
-                        localStorage.setItem("authToken", data.token);
+            if (!email || !password) {
+                alert("Please enter both email and password.");
+                return;
+            }
 
-                        // Save role (assuming backend sends role in response)
-                        if (data.role) {
-                            localStorage.setItem("userRole", data.role);
-                        }
+            button.disabled = true;
+            button.textContent = "Logging in...";
 
-                        // Check role before redirect
-                        if (data.role === "SUPER_ADMIN" || data.role === "STAFF") {
-                            alert("Login successful!");
-                            window.location.href = "/upload"; 
-                        } else {
-                            alert("Access denied: You are not allowed to upload rooms.");
-                            localStorage.removeItem("authToken"); 
-                        }
-                    } else {
-                        alert(data.message || "Login failed!");
-                    }
-                })
-                .catch(err => {
-                    console.error("Error:", err);
-                    alert("Login request failed!");
+            try {
+                const res = await fetch("/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
                 });
+
+                const data = await res.json();
+
+                if (!res.ok || !data.token) {
+                    alert(data.message || "Login failed!");
+                    return;
+                }
+
+                // Save token and role
+                localStorage.setItem("authToken", data.token);
+                const role = (data.user.role || "").toUpperCase();
+                localStorage.setItem("userRole", role);
+
+                if (role === "SUPER_ADMIN" || role === "STAFF") {
+                    window.location.href = "/upload";
+                } else {
+                    alert("Access denied: You are not allowed to upload rooms.");
+                    localStorage.removeItem("authToken");
+                    localStorage.removeItem("userRole");
+                }
+
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Network error! Please try again.");
+            } finally {
+                button.disabled = false;
+                button.textContent = "Log In";
+            }
         });
     </script>
 

@@ -155,13 +155,21 @@
         const fileNameSpan = document.getElementById('file-name');
         const uploadButton = document.querySelector('.upload-button');
 
-        // Role check on page load
+        // ✅ Check role and token on page load
         const role = localStorage.getItem("userRole");
+        const token = localStorage.getItem("authToken");
+
+        if (!token) {
+            alert("You must log in first!");
+            window.location.href = "/login";
+        }
+
         if (role !== "SUPER_ADMIN" && role !== "STAFF") {
             alert("Access denied: You are not allowed to view this page.");
             window.location.href = "/login";
         }
 
+        // Drag & drop events
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.classList.add('dragover');
@@ -183,6 +191,7 @@
             }
         });
 
+        // File browse selection
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 const file = e.target.files[0];
@@ -196,44 +205,47 @@
             }
         });
 
-        // This is a placeholder for the actual upload logic
-        uploadButton.addEventListener("click", () => {
+        // Upload button click
+        uploadButton.addEventListener("click", async () => {
             const file = fileInput.files[0];
             if (!file) {
                 alert("Please select a CSV file first.");
                 return;
             }
 
-            const token = localStorage.getItem("authToken");
-            if (!token) {
-                alert("You must log in first!");
-                window.location.href = "/login";
-                return;
-            }
+            uploadButton.disabled = true;
+            uploadButton.textContent = "Uploading...";
 
-            const formData = new FormData();
-            formData.append("file", file);
+            try {
+                const formData = new FormData();
+                formData.append("file", file);
 
-            fetch("/rooms/upload-rooms", {
-                method: "POST",
-                body: formData,
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            })
-                .then(res => res.json())
-                .then(data => {
-                    console.log("Upload Response:", data);
-                    alert(data.message || "Upload successful!");
-                })
-                .catch(err => {
-                    console.error("Error:", err);
-                    alert("Upload failed: " + err.message);
+                const res = await fetch("/rooms/upload-rooms", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        "Authorization": `Bearer ${token}`  // ✅ Send token
+                    }
                 });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.message || "Upload failed!");
+                } else {
+                    alert(data.message || "Upload successful!");
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Network error! Please try again.");
+            } finally {
+                uploadButton.disabled = false;
+                uploadButton.textContent = "Upload";
+            }
         });
-
-
     </script>
+
 </body>
 
 </html>
