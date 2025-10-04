@@ -355,7 +355,7 @@ func CheckInRoom(c *gin.Context) {
 		EndDate:     assignment.CheckOutDate,
 		DiningHall:  assignment.DiningHallPreference,
 		ColorCode:   "",
-	}	
+	}
 
 	totalPasses, foodPassErr := ExecuteFoodPassGeneration(foodPassRequest, staffObjID)
 

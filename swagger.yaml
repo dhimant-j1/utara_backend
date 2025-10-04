@@ -249,6 +249,12 @@ components:
         request_id:
           type: string
           description: MongoDB ObjectId
+        guest_names:
+          type: array
+          items:
+            type: string
+        dining_hall_preference:
+          type: string
         check_in_date:
           type: string
           format: date-time
@@ -293,6 +299,11 @@ components:
           type: string
         is_used:
           type: boolean
+        is_expired:
+          type: boolean
+        expired_at:
+          type: string
+          format: date-time
         dining_hall:
           type: string
         color_code:
@@ -307,19 +318,31 @@ components:
           type: string
           format: date-time
 
-    FoodPassCategory:
+    GenerateFoodPassRequest:
       type: object
+      required:
+        - user_id
+        - member_names
+        - start_date
+        - end_date
       properties:
-        id:
+        user_id:
           type: string
           description: MongoDB ObjectId
-        building_name:
+        member_names:
+          type: array
+          items:
+            type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        dining_hall:
           type: string
         color_code:
           type: string
-        created_at:
-          type: string
-          format: date-time
 
     RoomCategory:
       type: object
@@ -342,54 +365,41 @@ components:
           type: string
           format: date-time
 
-    CreateRoomRequest:
+    CreateRoomRequestRequest:
       type: object
       required:
-        - room_number
-        - floor
-        - type
-        - beds
-        - building
+        - check_in_date
+        - check_out_date
+        - number_of_people
+        - purpose
+        - place
       properties:
-        room_number:
+        check_in_date:
           type: string
-        floor:
-          type: integer
-        type:
+          format: date-time
+        check_out_date:
           type: string
-          enum: [SHREEHARIPLUS, SHREEHARI, SARJUPLUS, SARJU, NEELKANTHPLUS, NEELKANTH]
-        beds:
-          type: array
-          items:
-            $ref: '#/components/schemas/Bed'
-        has_geyser:
-          type: boolean
-          default: false
-        has_ac:
-          type: boolean
-          default: false
-        has_sofa_set:
-          type: boolean
-          default: false
-        sofa_set_quantity:
-          type: integer
-          default: 0
-        room_category_id:
+          format: date-time
+        number_of_people:
+          $ref: '#/components/schemas/PeopleCount'
+        purpose:
           type: string
-          description: ID of the room category to assign to this room
-        extra_amenities:
+        place:
           type: string
-        is_visible:
-          type: boolean
-          default: true
-        building:
+        special_requests:
+          type: string
+        reference:
           type: string
 
-    Error:
+    CheckInResponse:
       type: object
       properties:
-        error:
+        assignment:
+          $ref: '#/components/schemas/RoomAssignment'
+        message:
           type: string
+        total_passes_generated:
+          type: integer
 
 paths:
   /auth/signup:
@@ -1434,11 +1444,11 @@ paths:
             type: string
       responses:
         '200':
-          description: Check-in successful
+          description: Check-in successful, food passes generated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoomAssignment'
+                $ref: '#/components/schemas/CheckInResponse'
         '403':
           description: Insufficient permissions
           content:
@@ -1495,28 +1505,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - user_ids
-                - meal_type
-                - date
-                - dining_hall
-                - color_code
-              properties:
-                user_ids:
-                  type: array
-                  items:
-                    type: string
-                meal_type:
-                  type: string
-                  enum: [BREAKFAST, LUNCH, DINNER]
-                date:
-                  type: string
-                  format: date
-                dining_hall:
-                  type: string
-                color_code:
-                  type: string
+              $ref: '#/components/schemas/GenerateFoodPassRequest'
       responses:
         '201':
           description: Food passes generated successfully
