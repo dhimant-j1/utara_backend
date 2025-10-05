@@ -576,8 +576,14 @@ func ForgotPassword(c *gin.Context) {
 	}
 
 	fmt.Println("OTP for user:", otp)
+	// Here, integrate with your SMS service to send the OTP to user.PhoneNumber
+	err = SendWhatsAppMessage(user.PhoneNumber, "Your OTP for Utara is: "+otp)
+	if err != nil {
+		print("error sending the OTP")
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "OTP sent successfully (placeholder)"})
+	c.JSON(http.StatusOK, gin.H{"message": "OTP sent successfully to your number"})
 }
 
 func ResetPassword(c *gin.Context) {
