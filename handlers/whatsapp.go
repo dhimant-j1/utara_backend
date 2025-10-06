@@ -50,6 +50,7 @@ func SendWhatsAppMessage(number, message string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
+	println(resp.Status + "OTP SENT FROM WHATSAPP")
 
 	return nil
 }
