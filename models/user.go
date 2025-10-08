@@ -83,3 +83,17 @@ type ResetPasswordRequest struct {
 	Otp         string `json:"otp" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
+
+type SignupOtpEntry struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	PhoneNumber string             `bson:"phone_number"`
+	Request     SignupRequest      `bson:"request"`
+	Otp         string             `bson:"otp"`
+	OtpExpiry   time.Time          `bson:"otp_expiry"`
+	CreatedAt   time.Time          `bson:"created_at"`
+}
+
+type VerifySignupRequestOTP struct {
+	PhoneNumber string `json:"phone_number"`
+	Otp         string `json:"otp"`
+}

@@ -33,6 +33,110 @@ func GenerateOTP() string {
 	return otp
 }
 
+// func Signup(c *gin.Context) {
+// 	var req models.SignupRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	// Check if user already exists
+// 	var existingUser models.User
+// 	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existingUser)
+// 	if err == nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists"})
+// 		return
+// 	}
+
+// 	// Validate role
+// 	if req.Role != models.RoleSuperAdmin && req.Role != models.RoleStaff && req.Role != models.RoleUser {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+// 		return
+// 	}
+
+// 	// Check if this is the first user being created
+// 	count, err := config.DB.Collection("users").CountDocuments(context.Background(), bson.M{})
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking user count"})
+// 		return
+// 	}
+
+// 	// If this is not the first user, apply the regular role checks
+// 	if count > 0 {
+// 		if req.Role == models.RoleSuperAdmin || req.Role == models.RoleStaff {
+// 			userID, exists := c.Get("user_id")
+// 			if !exists {
+// 				c.JSON(http.StatusForbidden, gin.H{"error": "Only super admin can create admin or staff users"})
+// 				return
+// 			}
+
+// 			var currentUser models.User
+// 			userObjID, _ := primitive.ObjectIDFromHex(userID.(string))
+// 			err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&currentUser)
+// 			if err != nil || currentUser.Role != models.RoleSuperAdmin {
+// 				c.JSON(http.StatusForbidden, gin.H{"error": "Only super admin can create admin or staff users"})
+// 				return
+// 			}
+// 		}
+// 	}
+
+// 	// Hash password
+// 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+// 		return
+// 	}
+
+// 	parts := strings.Split(req.Email, "@")
+// 	username := ""
+// 	if len(parts) > 0 {
+// 		username = parts[0]
+// 		fmt.Println("Username:", username)
+// 	} else {
+// 		fmt.Println("Invalid email format")
+// 	}
+
+// 	// Create user
+// 	user := models.User{
+// 		Email:       req.Email,
+// 		UserName:    username,
+// 		Password:    string(hashedPassword),
+// 		Name:        req.Name,
+// 		Role:        req.Role,
+// 		PhoneNumber: req.PhoneNumber,
+// 		UserType:    "Neelkanth",
+// 		CreatedAt:   time.Now(),
+// 		UpdatedAt:   time.Now(),
+// 	}
+
+// 	result, err := config.DB.Collection("users").InsertOne(context.Background(), user)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
+// 		return
+// 	}
+
+// 	user.ID = result.InsertedID.(primitive.ObjectID)
+// 	user.Password = "" // Remove password from response
+
+// 	// Generate JWT token
+// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+// 		"user_id": user.ID.Hex(),
+// 		"role":    user.Role, // Add role to JWT claims
+// 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+// 	})
+
+// 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusCreated, models.AuthResponse{
+// 		Token: tokenString,
+// 		User:  user,
+// 	})
+// }
+
 func Signup(c *gin.Context) {
 	var req models.SignupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -40,7 +144,6 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	// Check if user already exists
 	var existingUser models.User
 	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existingUser)
 	if err == nil {
@@ -48,62 +151,69 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	// Validate role
-	if req.Role != models.RoleSuperAdmin && req.Role != models.RoleStaff && req.Role != models.RoleUser {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
-		return
+	otp := GenerateOTP()
+	otpExpiry := time.Now().Add(5 * time.Minute) 
+
+	signupEntry := models.SignupOtpEntry{
+		PhoneNumber: req.PhoneNumber,
+		Request:     req,
+		Otp:         otp,
+		OtpExpiry:   otpExpiry,
+		CreatedAt:   time.Now(),
 	}
 
-	// Check if this is the first user being created
-	count, err := config.DB.Collection("users").CountDocuments(context.Background(), bson.M{})
+	_, err = config.DB.Collection("signup_otps").InsertOne(context.Background(), signupEntry)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking user count"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving OTP"})
 		return
 	}
 
-	// If this is not the first user, apply the regular role checks
-	if count > 0 {
-		if req.Role == models.RoleSuperAdmin || req.Role == models.RoleStaff {
-			userID, exists := c.Get("user_id")
-			if !exists {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Only super admin can create admin or staff users"})
-				return
-			}
-
-			var currentUser models.User
-			userObjID, _ := primitive.ObjectIDFromHex(userID.(string))
-			err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": userObjID}).Decode(&currentUser)
-			if err != nil || currentUser.Role != models.RoleSuperAdmin {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Only super admin can create admin or staff users"})
-				return
-			}
-		}
-	}
-
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
 		return
 	}
 
-	parts := strings.Split(req.Email, "@")
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OTP sent successfully. Please verify to complete signup.",
+		"phone":   req.PhoneNumber,
+	})
+}
+
+func VerifySignupOTP(c *gin.Context) {
+	var req models.VerifySignupRequestOTP
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var otpEntry models.SignupOtpEntry
+	err := config.DB.Collection("signup_otps").FindOne(context.Background(),
+		bson.M{"phone_number": req.PhoneNumber}).Decode(&otpEntry)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No signup request found"})
+		return
+	}
+
+	if otpEntry.Otp != req.Otp || time.Now().After(otpEntry.OtpExpiry) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired OTP"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(otpEntry.Request.Password), bcrypt.DefaultCost)
+	parts := strings.Split(otpEntry.Request.Email, "@")
 	username := ""
 	if len(parts) > 0 {
 		username = parts[0]
-		fmt.Println("Username:", username)
-	} else {
-		fmt.Println("Invalid email format")
 	}
 
-	// Create user
 	user := models.User{
-		Email:       req.Email,
+		Email:       otpEntry.Request.Email,
 		UserName:    username,
 		Password:    string(hashedPassword),
-		Name:        req.Name,
-		Role:        req.Role,
-		PhoneNumber: req.PhoneNumber,
+		Name:        otpEntry.Request.Name,
+		Role:        otpEntry.Request.Role,
+		PhoneNumber: otpEntry.Request.PhoneNumber,
 		UserType:    "Neelkanth",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -114,24 +224,21 @@ func Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
 		return
 	}
-
 	user.ID = result.InsertedID.(primitive.ObjectID)
-	user.Password = "" // Remove password from response
 
 	// Generate JWT token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.Hex(),
-		"role":    user.Role, // Add role to JWT claims
+		"role":    user.Role,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 	})
+	tokenString, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
-		return
-	}
+	_, _ = config.DB.Collection("signup_otps").DeleteOne(context.Background(),
+		bson.M{"_id": otpEntry.ID})
 
-	c.JSON(http.StatusCreated, models.AuthResponse{
+	user.Password = "" // hide password
+	c.JSON(http.StatusOK, models.AuthResponse{
 		Token: tokenString,
 		User:  user,
 	})
