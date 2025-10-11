@@ -349,12 +349,113 @@ func CheckInRoom(c *gin.Context) {
 	staffID, _ := c.Get("user_id")
 	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
 
+	memberNames := make([]string, 0, len(assignment.GuestNames))
+	memberNames = append(memberNames, assignment.GuestNames...)
+	diningHall := assignment.DiningHallPreference
+
+	// Pull additional context from the associated room request when needed.
+	var requestExtras struct {
+		models.RoomRequest   `bson:",inline"`
+		GuestNames           []string `bson:"guest_names"`
+		DiningHallPreference string   `bson:"dining_hall_preference"`
+	}
+
+	requestErr := config.DB.Collection("room_requests").FindOne(
+		context.Background(),
+		bson.M{"_id": assignment.RequestID},
+	).Decode(&requestExtras)
+
+	if requestErr != nil && requestErr != mongo.ErrNoDocuments {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room request"})
+		return
+	}
+
+	if requestErr == nil {
+		if len(memberNames) == 0 && len(requestExtras.GuestNames) > 0 {
+			memberNames = append(memberNames, requestExtras.GuestNames...)
+		}
+		if diningHall == "" && requestExtras.DiningHallPreference != "" {
+			diningHall = requestExtras.DiningHallPreference
+		}
+		if len(memberNames) == 0 && requestExtras.Name != "" {
+			memberNames = append(memberNames, requestExtras.Name)
+		}
+		if requestExtras.NumberOfPeople.Total > 0 {
+			baseName := requestExtras.Name
+			if baseName == "" && len(memberNames) > 0 {
+				baseName = memberNames[0]
+			}
+			if baseName == "" {
+				baseName = "Guest"
+			}
+			for len(memberNames) < requestExtras.NumberOfPeople.Total {
+				memberNames = append(memberNames, fmt.Sprintf("%s %d", baseName, len(memberNames)+1))
+			}
+		}
+	}
+
+	if len(memberNames) == 0 {
+		var user models.User
+		userErr := config.DB.Collection("users").FindOne(
+			context.Background(),
+			bson.M{"_id": assignment.UserID},
+		).Decode(&user)
+		if userErr != nil && userErr != mongo.ErrNoDocuments {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user"})
+			return
+		}
+		if userErr == nil {
+			if user.Name != "" {
+				memberNames = append(memberNames, user.Name)
+			} else if user.Email != "" {
+				memberNames = append(memberNames, user.Email)
+			}
+		}
+	}
+
+	if diningHall == "" {
+		var room models.Room
+		roomErr := config.DB.Collection("rooms").FindOne(
+			context.Background(),
+			bson.M{"_id": assignment.RoomID},
+		).Decode(&room)
+		if roomErr != nil && roomErr != mongo.ErrNoDocuments {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room details"})
+			return
+		}
+		if roomErr == nil && room.Building != "" {
+			diningHall = room.Building
+		}
+	}
+
+	if len(memberNames) == 0 {
+		memberNames = []string{"Primary Guest"}
+	}
+
+	updateFields := bson.M{}
+	if len(assignment.GuestNames) == 0 && len(memberNames) > 0 {
+		updateFields["guest_names"] = memberNames
+	}
+	if assignment.DiningHallPreference == "" && diningHall != "" {
+		updateFields["dining_hall_preference"] = diningHall
+	}
+	if len(updateFields) > 0 {
+		_, _ = config.DB.Collection("room_assignments").UpdateOne(
+			context.Background(),
+			bson.M{"_id": assignment.ID},
+			bson.M{"$set": updateFields},
+		)
+	}
+
+	assignment.GuestNames = memberNames
+	assignment.DiningHallPreference = diningHall
+
 	foodPassRequest := models.GenerateFoodPassRequest{
 		UserID:      assignment.UserID,
-		MemberNames: assignment.GuestNames,
+		MemberNames: memberNames,
 		StartDate:   assignment.CheckInDate,
 		EndDate:     assignment.CheckOutDate,
-		DiningHall:  assignment.DiningHallPreference,
+		DiningHall:  diningHall,
 		ColorCode:   "",
 	}
 
