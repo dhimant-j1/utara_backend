@@ -152,7 +152,7 @@ func Signup(c *gin.Context) {
 	}
 
 	otp := GenerateOTP()
-	otpExpiry := time.Now().Add(5 * time.Minute) 
+	otpExpiry := time.Now().Add(5 * time.Minute)
 
 	signupEntry := models.SignupOtpEntry{
 		PhoneNumber: req.PhoneNumber,
@@ -168,11 +168,11 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
-		return
-	}
+	/*	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
+			return
+		}*/
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent successfully. Please verify to complete signup.",
@@ -210,6 +210,7 @@ func VerifySignupOTP(c *gin.Context) {
 	user := models.User{
 		Email:       otpEntry.Request.Email,
 		UserName:    username,
+		Gaam:        otpEntry.Request.Gaam,
 		Password:    string(hashedPassword),
 		Name:        otpEntry.Request.Name,
 		Role:        otpEntry.Request.Role,

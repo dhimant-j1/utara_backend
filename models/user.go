@@ -21,6 +21,7 @@ type User struct {
 	Password    string             `json:"-" bson:"password"`
 	Name        string             `json:"name" bson:"name"`
 	Role        UserRole           `json:"role" bson:"role"`
+	Gaam        string             `json:"gaam" bson:"gaam"`
 	IsImportant bool               `json:"is_important" bson:"is_important"`
 	PhoneNumber string             `json:"phone_number" bson:"phone_number"`
 	UserType    string             `json:"user_type" bson:"user_type"`
@@ -40,6 +41,7 @@ type SignupRequest struct {
 	Password    string   `json:"password" binding:"required,min=6"`
 	Name        string   `json:"name" binding:"required"`
 	PhoneNumber string   `json:"phone_number" binding:"required"`
+	Gaam        string   `json:"gaam"`
 	Role        UserRole `json:"role" binding:"required"`
 }
 

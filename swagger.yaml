@@ -401,11 +401,42 @@ components:
         total_passes_generated:
           type: integer
 
+    SignupOtpEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectId
+        phone_number:
+          type: string
+        request:
+          $ref: '#/components/schemas/SignupRequest'
+        otp:
+          type: string
+        otp_expiry:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    VerifySignupRequestOTP:
+      type: object
+      required:
+        - phone_number
+        - otp
+      properties:
+        phone_number:
+          type: string
+        otp:
+          type: string
+
 paths:
   /auth/signup:
     post:
-      summary: Register a new user
+      summary: Initiate user registration with OTP
       description: |
+        Sends an OTP to the provided phone number for signup verification.
         - Regular users can only create USER accounts
         - SUPER_ADMIN can create any type of account
         - STAFF cannot create new accounts
@@ -416,20 +447,43 @@ paths:
             schema:
               $ref: '#/components/schemas/SignupRequest'
       responses:
-        '201':
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  phone:
+                    type: string
+        '400':
+          description: Invalid request or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/verify-signup-otp:
+    post:
+      summary: Verify signup OTP and complete registration
+      description: Verifies the OTP sent to the phone number and creates the user account if valid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifySignupRequestOTP'
+      responses:
+        '200':
           description: User created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Insufficient permissions
+          description: Invalid or expired OTP
           content:
             application/json:
               schema:
