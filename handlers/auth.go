@@ -151,6 +151,10 @@ func Signup(c *gin.Context) {
 		return
 	}
 
+	// Delete all existing signup OTP entries for this phone number
+	_, _ = config.DB.Collection("signup_otps").DeleteMany(context.Background(),
+		bson.M{"phone_number": req.PhoneNumber})
+
 	otp := GenerateOTP()
 	otpExpiry := time.Now().Add(5 * time.Minute)
 
