@@ -168,11 +168,11 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	/*	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
-			return
-		}*/
+	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent successfully. Please verify to complete signup.",
