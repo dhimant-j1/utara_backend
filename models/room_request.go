@@ -58,6 +58,12 @@ type RoomAssignment struct {
 	CheckedOutAt         *time.Time         `json:"checked_out_at,omitempty" bson:"checked_out_at,omitempty"`
 }
 
+type RoomAssignmentWrapper struct {
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	RoomAssignment RoomAssignment     `bson:"roomassignment" json:"roomassignment"`
+	User           interface{}        `bson:"user" json:"user"`
+}
+
 type CreateRoomRequestRequest struct {
 	CheckInDate    time.Time   `json:"check_in_date" binding:"required"`
 	CheckOutDate   time.Time   `json:"check_out_date" binding:"required"`
@@ -75,10 +81,20 @@ type ProcessRoomRequestRequest struct {
 	RoomID *primitive.ObjectID `json:"room_id"`
 }
 
+// type RoomAssignmentRequest struct {
+// 	RoomID       primitive.ObjectID `json:"room_id" binding:"required"`
+// 	UserID       primitive.ObjectID `json:"user_id" binding:"required"`
+// 	RequestID    primitive.ObjectID `json:"request_id" binding:"required"`
+// 	CheckInDate  time.Time          `json:"check_in_date" binding:"required"`
+// 	CheckOutDate time.Time          `json:"check_out_date" binding:"required"`
+// 	GuestNames   []string           `json:"guest_names"`
+// }
+
 type RoomAssignmentRequest struct {
-	RoomID       primitive.ObjectID `json:"room_id" binding:"required"`
-	UserID       primitive.ObjectID `json:"user_id" binding:"required"`
-	RequestID    primitive.ObjectID `json:"request_id" binding:"required"`
-	CheckInDate  time.Time          `json:"check_in_date" binding:"required"`
-	CheckOutDate time.Time          `json:"check_out_date" binding:"required"`
+	RoomID       string    `json:"room_id" binding:"required"`
+	UserID       string    `json:"user_id" binding:"required"`
+	RequestID    string    `json:"request_id" binding:"required"`
+	CheckInDate  time.Time `json:"check_in_date" binding:"required"`
+	CheckOutDate time.Time `json:"check_out_date" binding:"required"`
+	GuestNames   []string  `json:"guest_names"`
 }

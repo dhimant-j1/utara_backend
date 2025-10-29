@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,22 +22,41 @@ import (
 
 // ExecuteFoodPassGeneration performs the core pass generation logic.
 func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primitive.ObjectID) (int, error) {
-	// Check if user exists
+	// 1️⃣ Verify user exists
 	var user models.User
-	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{
-		"_id": req.UserID,
-	}).Decode(&user)
+	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": req.UserID}).Decode(&user)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return 0, fmt.Errorf("user not found: %w", err)
 		}
 		return 0, fmt.Errorf("error fetching user: %w", err)
+	}
+
+	// 2️⃣ Validate date range
+	if req.StartDate.IsZero() || req.EndDate.IsZero() {
+		return 0, fmt.Errorf("invalid date range: start or end date missing")
+	}
+	if req.EndDate.Before(req.StartDate) {
+		return 0, fmt.Errorf("invalid date range: end date before start date")
 	}
 
 	var passes []models.FoodPass
 	currentDate := req.StartDate
 	colorCode := req.ColorCode
 
+	// 3️⃣ Fetch dining hall color if exists
+	if req.DiningHall != "" {
+		var category models.FoodPassCategory
+		_ = config.DB.Collection("food_pass_categories").FindOne(
+			context.Background(),
+			bson.M{"building_name": req.DiningHall},
+		).Decode(&category)
+		if category.ColorCode != "" {
+			colorCode = category.ColorCode
+		}
+	}
+
+	// 4️⃣ Generate passes
 	for !currentDate.After(req.EndDate) {
 		mealTypes := []models.MealType{models.Breakfast, models.Lunch, models.Dinner}
 
@@ -47,17 +67,6 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 				qrCode, err := utils.GenerateQRCode(id.Hex())
 				if err != nil {
 					return 0, fmt.Errorf("error generating QR code: %w", err)
-				}
-
-				if req.DiningHall != "" {
-					var category models.FoodPassCategory
-					err := config.DB.Collection("food_pass_categories").FindOne(context.Background(), bson.M{
-						"building_name": req.DiningHall,
-					}).Decode(&category)
-					if err != nil {
-						return 0, fmt.Errorf("error fetching food pass category: %w", err)
-					}
-					colorCode = category.ColorCode
 				}
 
 				pass := models.FoodPass{
@@ -79,9 +88,10 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 		currentDate = currentDate.AddDate(0, 0, 1)
 	}
 
-	var passInterfaces []interface{}
-	for _, pass := range passes {
-		passInterfaces = append(passInterfaces, pass)
+	// 5️⃣ Insert all passes in DB
+	passInterfaces := make([]interface{}, len(passes))
+	for i, pass := range passes {
+		passInterfaces[i] = pass
 	}
 
 	_, err = config.DB.Collection("food_passes").InsertMany(context.Background(), passInterfaces)
@@ -92,7 +102,7 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 	return len(passes), nil
 }
 
-// GenerateFoodPasses generates food passes for a user and their family members (API Handler)
+// ✅ API Endpoint (Optional - Manual Generation)
 func GenerateFoodPasses(c *gin.Context) {
 	var req models.GenerateFoodPassRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -104,9 +114,8 @@ func GenerateFoodPasses(c *gin.Context) {
 	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
 
 	totalPasses, err := ExecuteFoodPassGeneration(req, staffObjID)
-
 	if err != nil {
-		if err.Error() == "user not found" {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}

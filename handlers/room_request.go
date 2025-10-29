@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -244,7 +243,6 @@ func ProcessRoomRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, roomRequest)
 }
 
-// AssignRoom assigns a room to a user
 func AssignRoom(c *gin.Context) {
 	var req models.RoomAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -252,15 +250,39 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
+	// Extract staff ID
 	staffID, _ := c.Get("user_id")
-	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
+	staffObjID, err := primitive.ObjectIDFromHex(staffID.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid staff ID"})
+		return
+	}
 
-	// Check if room is available
+	// Convert string IDs to ObjectIDs
+	roomObjID, err := primitive.ObjectIDFromHex(req.RoomID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid RoomID"})
+		return
+	}
+
+	userObjID, err := primitive.ObjectIDFromHex(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UserID"})
+		return
+	}
+
+	requestObjID, err := primitive.ObjectIDFromHex(req.RequestID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid RequestID"})
+		return
+	}
+
+	// ✅ Check if room is available using ObjectID
 	var room models.Room
-	err := config.DB.Collection("rooms").FindOne(context.Background(), bson.M{
-		"_id":         req.RoomID,
-		"is_occupied": false,
-	}).Decode(&room)
+	err = config.DB.Collection("rooms").FindOne(
+		context.Background(),
+		bson.M{"_id": roomObjID, "is_occupied": false},
+	).Decode(&room)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -270,24 +292,18 @@ func AssignRoom(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking room availability"})
 		return
 	}
-	type RoomAssignmentDetails struct {
-		models.RoomAssignment
-		User *models.User `json:"user,omitempty"`
-	}
 
-	assignment := RoomAssignmentDetails{
-		RoomAssignment: models.RoomAssignment{
-			RoomID:       req.RoomID,
-			UserID:       req.UserID,
-			RequestID:    req.RequestID,
-			CheckInDate:  req.CheckInDate,
-			CheckOutDate: req.CheckOutDate,
-			AssignedBy:   staffObjID,
-			AssignedAt:   time.Now(),
-			CheckedIn:    false,
-			CheckedOut:   false,
-		},
-		User: nil,
+	assignment := models.RoomAssignment{
+		RoomID:       roomObjID,
+		UserID:       userObjID,
+		RequestID:    requestObjID,
+		CheckInDate:  req.CheckInDate,
+		CheckOutDate: req.CheckOutDate,
+		GuestNames:   []string{"Primary Guest"},
+		AssignedBy:   staffObjID,
+		AssignedAt:   time.Now(),
+		CheckedIn:    false,
+		CheckedOut:   false,
 	}
 
 	result, err := config.DB.Collection("room_assignments").InsertOne(context.Background(), assignment)
@@ -296,10 +312,10 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
-	// Update room status to occupied
+	// ✅ Mark room as occupied
 	_, err = config.DB.Collection("rooms").UpdateOne(
 		context.Background(),
-		bson.M{"_id": req.RoomID},
+		bson.M{"_id": roomObjID},
 		bson.M{"$set": bson.M{"is_occupied": true}},
 	)
 	if err != nil {
@@ -308,175 +324,81 @@ func AssignRoom(c *gin.Context) {
 	}
 
 	assignment.ID = result.InsertedID.(primitive.ObjectID)
-	c.JSON(http.StatusCreated, assignment)
+	c.JSON(http.StatusCreated, gin.H{
+		"message":    "Room assigned successfully",
+		"assignment": assignment,
+	})
 }
 
 // CheckInRoom marks a room assignment as checked in
 func CheckInRoom(c *gin.Context) {
+	// Step 1: Validate room assignment ID
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assignment ID"})
 		return
 	}
 
-	now := time.Now()
+	// Step 2: Fetch room assignment
+	var assignment models.RoomAssignment
+	err = config.DB.Collection("room_assignments").FindOne(context.Background(), bson.M{"_id": id}).Decode(&assignment)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Room assignment not found"})
+		return
+	}
+
+	// Step 3: Update check-in status
 	update := bson.M{
 		"$set": bson.M{
 			"checked_in":    true,
-			"checked_in_at": now,
+			"checked_in_at": time.Now(),
 		},
 	}
 
-	var assignment models.RoomAssignment
-	err = config.DB.Collection("room_assignments").FindOneAndUpdate(
-		context.Background(),
-		bson.M{"_id": id, "checked_in": false},
-		update,
-		options.FindOneAndUpdate().SetReturnDocument(options.After),
-	).Decode(&assignment)
-
+	_, err = config.DB.Collection("room_assignments").UpdateByID(context.Background(), id, update)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Room assignment not found or already checked in"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking in"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update check-in status"})
 		return
 	}
 
-	// --- INTEGRATION OF FOOD PASS GENERATION ---
-
+	// Step 4: Auto generate food passes
 	staffID, _ := c.Get("user_id")
 	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
 
-	memberNames := make([]string, 0, len(assignment.GuestNames))
-	memberNames = append(memberNames, assignment.GuestNames...)
-	diningHall := assignment.DiningHallPreference
-
-	// Pull additional context from the associated room request when needed.
-	var requestExtras struct {
-		models.RoomRequest   `bson:",inline"`
-		GuestNames           []string `bson:"guest_names"`
-		DiningHallPreference string   `bson:"dining_hall_preference"`
-	}
-
-	requestErr := config.DB.Collection("room_requests").FindOne(
-		context.Background(),
-		bson.M{"_id": assignment.RequestID},
-	).Decode(&requestExtras)
-
-	if requestErr != nil && requestErr != mongo.ErrNoDocuments {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room request"})
-		return
-	}
-
-	if requestErr == nil {
-		if len(memberNames) == 0 && len(requestExtras.GuestNames) > 0 {
-			memberNames = append(memberNames, requestExtras.GuestNames...)
-		}
-		if diningHall == "" && requestExtras.DiningHallPreference != "" {
-			diningHall = requestExtras.DiningHallPreference
-		}
-		if len(memberNames) == 0 && requestExtras.Name != "" {
-			memberNames = append(memberNames, requestExtras.Name)
-		}
-		if requestExtras.NumberOfPeople.Total > 0 {
-			baseName := requestExtras.Name
-			if baseName == "" && len(memberNames) > 0 {
-				baseName = memberNames[0]
-			}
-			if baseName == "" {
-				baseName = "Guest"
-			}
-			for len(memberNames) < requestExtras.NumberOfPeople.Total {
-				memberNames = append(memberNames, fmt.Sprintf("%s %d", baseName, len(memberNames)+1))
-			}
-		}
-	}
-
-	if len(memberNames) == 0 {
-		var user models.User
-		userErr := config.DB.Collection("users").FindOne(
-			context.Background(),
-			bson.M{"_id": assignment.UserID},
-		).Decode(&user)
-		if userErr != nil && userErr != mongo.ErrNoDocuments {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user"})
-			return
-		}
-		if userErr == nil {
-			if user.Name != "" {
-				memberNames = append(memberNames, user.Name)
-			} else if user.Email != "" {
-				memberNames = append(memberNames, user.Email)
-			}
-		}
-	}
-
-	if diningHall == "" {
-		var room models.Room
-		roomErr := config.DB.Collection("rooms").FindOne(
-			context.Background(),
-			bson.M{"_id": assignment.RoomID},
-		).Decode(&room)
-		if roomErr != nil && roomErr != mongo.ErrNoDocuments {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room details"})
-			return
-		}
-		if roomErr == nil && room.Building != "" {
-			diningHall = room.Building
-		}
-	}
-
-	if len(memberNames) == 0 {
-		memberNames = []string{"Primary Guest"}
-	}
-
-	updateFields := bson.M{}
-	if len(assignment.GuestNames) == 0 && len(memberNames) > 0 {
-		updateFields["guest_names"] = memberNames
-	}
-	if assignment.DiningHallPreference == "" && diningHall != "" {
-		updateFields["dining_hall_preference"] = diningHall
-	}
-	if len(updateFields) > 0 {
-		_, _ = config.DB.Collection("room_assignments").UpdateOne(
-			context.Background(),
-			bson.M{"_id": assignment.ID},
-			bson.M{"$set": updateFields},
-		)
-	}
-
-	assignment.GuestNames = memberNames
-	assignment.DiningHallPreference = diningHall
-
-	foodPassRequest := models.GenerateFoodPassRequest{
-		UserID:      assignment.UserID,
-		MemberNames: memberNames,
-		StartDate:   assignment.CheckInDate,
-		EndDate:     assignment.CheckOutDate,
-		DiningHall:  diningHall,
-		ColorCode:   "",
-	}
-
-	totalPasses, foodPassErr := ExecuteFoodPassGeneration(foodPassRequest, staffObjID)
-
-	if foodPassErr != nil {
-		log.Printf("Warning: Food pass generation failed for assignment %s: %v", id.Hex(), foodPassErr)
-
+	// ✅ Important: Validate user and request IDs
+	if assignment.UserID.IsZero() {
 		c.JSON(http.StatusOK, gin.H{
-			"assignment":             assignment,
-			"warning":                fmt.Sprintf("Room checked in successfully, but FAILED to generate food passes: %v", foodPassErr.Error()),
-			"total_passes_generated": 0,
+			"assignment": assignment,
+			"warning":    "Room checked in, but UserID missing — cannot generate food passes",
 		})
 		return
 	}
-	// --- END INTEGRATION ---
 
+	// Step 5: Create food pass request
+	req := models.GenerateFoodPassRequest{
+		UserID:      assignment.UserID,
+		MemberNames: assignment.GuestNames,
+		DiningHall:  assignment.DiningHallPreference,
+		StartDate:   time.Now(),
+		EndDate:     time.Now().AddDate(0, 0, 1), // Example: 1-day pass
+	}
+
+	// Step 6: Execute food pass generation
+	totalPasses, err := ExecuteFoodPassGeneration(req, staffObjID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"assignment":             assignment,
+			"total_passes_generated": 0,
+			"warning":                fmt.Sprintf("Room checked in successfully, but FAILED to generate food passes: %v", err.Error()),
+		})
+		return
+	}
+
+	// Step 7: Success response
 	c.JSON(http.StatusOK, gin.H{
 		"assignment":             assignment,
-		"message":                "Room checked in successfully. Food passes generated.",
 		"total_passes_generated": totalPasses,
+		"message":                "Room checked in and food passes generated successfully",
 	})
 }
 
