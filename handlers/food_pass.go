@@ -20,44 +20,52 @@ import (
 	"utara_backend/utils"
 )
 
-// ExecuteFoodPassGeneration performs the core pass generation logic.
 func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primitive.ObjectID) (int, error) {
-	// 1️⃣ Verify user exists
+	// Check if user exists
 	var user models.User
-	err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": req.UserID}).Decode(&user)
-	if err != nil {
+	if err := config.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": req.UserID}).Decode(&user); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return 0, fmt.Errorf("user not found: %w", err)
 		}
 		return 0, fmt.Errorf("error fetching user: %w", err)
 	}
 
-	// 2️⃣ Validate date range
+	// Validate dates
 	if req.StartDate.IsZero() || req.EndDate.IsZero() {
 		return 0, fmt.Errorf("invalid date range: start or end date missing")
 	}
 	if req.EndDate.Before(req.StartDate) {
-		return 0, fmt.Errorf("invalid date range: end date before start date")
+		return 0, fmt.Errorf("invalid date range: end date is before start date")
+	}
+
+	// Normalize both dates to midnight (IST) to avoid time drift
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	startDate := time.Date(req.StartDate.Year(), req.StartDate.Month(), req.StartDate.Day(), 0, 0, 0, 0, loc)
+	endDate := time.Date(req.EndDate.Year(), req.EndDate.Month(), req.EndDate.Day(), 0, 0, 0, 0, loc)
+
+	currentDate := startDate
+
+	// Ensure member names present — fallback to single "Primary Guest" if empty
+	if len(req.MemberNames) == 0 {
+		req.MemberNames = []string{"Primary Guest"}
 	}
 
 	var passes []models.FoodPass
-	currentDate := req.StartDate
 	colorCode := req.ColorCode
 
-	// 3️⃣ Fetch dining hall color if exists
+	// Fetch dining hall category (color) once if DiningHall is provided
 	if req.DiningHall != "" {
 		var category models.FoodPassCategory
-		_ = config.DB.Collection("food_pass_categories").FindOne(
-			context.Background(),
-			bson.M{"building_name": req.DiningHall},
-		).Decode(&category)
+		_ = config.DB.Collection("food_pass_categories").FindOne(context.Background(), bson.M{
+			"building_name": req.DiningHall,
+		}).Decode(&category)
 		if category.ColorCode != "" {
 			colorCode = category.ColorCode
 		}
 	}
 
-	// 4️⃣ Generate passes
-	for !currentDate.After(req.EndDate) {
+	// Generate passes for each day, each member, each meal
+	for !currentDate.After(endDate) {
 		mealTypes := []models.MealType{models.Breakfast, models.Lunch, models.Dinner}
 
 		for _, memberName := range req.MemberNames {
@@ -85,24 +93,28 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 				passes = append(passes, pass)
 			}
 		}
+
 		currentDate = currentDate.AddDate(0, 0, 1)
 	}
 
-	// 5️⃣ Insert all passes in DB
+	// Insert all passes
+	if len(passes) == 0 {
+		return 0, nil
+	}
 	passInterfaces := make([]interface{}, len(passes))
-	for i, pass := range passes {
-		passInterfaces[i] = pass
+	for i, p := range passes {
+		passInterfaces[i] = p
 	}
 
-	_, err = config.DB.Collection("food_passes").InsertMany(context.Background(), passInterfaces)
-	if err != nil {
+	if _, err := config.DB.Collection("food_passes").InsertMany(context.Background(), passInterfaces); err != nil {
 		return 0, fmt.Errorf("error inserting food passes: %w", err)
 	}
 
 	return len(passes), nil
 }
 
-// ✅ API Endpoint (Optional - Manual Generation)
+
+// GenerateFoodPasses is the API handler that calls the generator.
 func GenerateFoodPasses(c *gin.Context) {
 	var req models.GenerateFoodPassRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,16 +122,17 @@ func GenerateFoodPasses(c *gin.Context) {
 		return
 	}
 
-	staffID, _ := c.Get("user_id")
-	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
+	staffIDVal, _ := c.Get("user_id")
+	staffObjID, _ := primitive.ObjectIDFromHex(fmt.Sprintf("%v", staffIDVal))
 
 	totalPasses, err := ExecuteFoodPassGeneration(req, staffObjID)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
+		// If underlying error wraps mongo.ErrNoDocuments (user not found), respond 404
+		if errors.Is(err, mongo.ErrNoDocuments) || errors.Is(errors.Unwrap(err), mongo.ErrNoDocuments) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error generating food passes: %v", err.Error())})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error generating food passes: %v", err)})
 		return
 	}
 

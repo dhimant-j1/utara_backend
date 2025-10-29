@@ -250,7 +250,6 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
-	// Extract staff ID
 	staffID, _ := c.Get("user_id")
 	staffObjID, err := primitive.ObjectIDFromHex(staffID.(string))
 	if err != nil {
@@ -258,7 +257,6 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
-	// Convert string IDs to ObjectIDs
 	roomObjID, err := primitive.ObjectIDFromHex(req.RoomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid RoomID"})
@@ -277,7 +275,7 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
-	// ✅ Check if room is available using ObjectID
+	// ✅ Check if room is available
 	var room models.Room
 	err = config.DB.Collection("rooms").FindOne(
 		context.Background(),
@@ -293,13 +291,19 @@ func AssignRoom(c *gin.Context) {
 		return
 	}
 
+	// ✅ Use provided guest names or default
+	guestNames := req.GuestNames
+	if len(guestNames) == 0 {
+		guestNames = []string{"Primary Guest"}
+	}
+
 	assignment := models.RoomAssignment{
 		RoomID:       roomObjID,
 		UserID:       userObjID,
 		RequestID:    requestObjID,
 		CheckInDate:  req.CheckInDate,
 		CheckOutDate: req.CheckOutDate,
-		GuestNames:   []string{"Primary Guest"},
+		GuestNames:   guestNames,
 		AssignedBy:   staffObjID,
 		AssignedAt:   time.Now(),
 		CheckedIn:    false,
@@ -329,17 +333,14 @@ func AssignRoom(c *gin.Context) {
 		"assignment": assignment,
 	})
 }
-
-// CheckInRoom marks a room assignment as checked in
 func CheckInRoom(c *gin.Context) {
-	// Step 1: Validate room assignment ID
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid assignment ID"})
 		return
 	}
 
-	// Step 2: Fetch room assignment
+	// Fetch the room assignment
 	var assignment models.RoomAssignment
 	err = config.DB.Collection("room_assignments").FindOne(context.Background(), bson.M{"_id": id}).Decode(&assignment)
 	if err != nil {
@@ -347,11 +348,19 @@ func CheckInRoom(c *gin.Context) {
 		return
 	}
 
-	// Step 3: Update check-in status
+	// Prevent duplicate check-in
+	if assignment.CheckedIn {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Room already checked in"})
+		return
+	}
+
+	now := time.Now()
+
+	// ✅ Mark as checked in
 	update := bson.M{
 		"$set": bson.M{
 			"checked_in":    true,
-			"checked_in_at": time.Now(),
+			"checked_in_at": &now,
 		},
 	}
 
@@ -361,44 +370,41 @@ func CheckInRoom(c *gin.Context) {
 		return
 	}
 
-	// Step 4: Auto generate food passes
-	staffID, _ := c.Get("user_id")
-	staffObjID, _ := primitive.ObjectIDFromHex(staffID.(string))
-
-	// ✅ Important: Validate user and request IDs
-	if assignment.UserID.IsZero() {
-		c.JSON(http.StatusOK, gin.H{
-			"assignment": assignment,
-			"warning":    "Room checked in, but UserID missing — cannot generate food passes",
-		})
+	// ✅ Re-fetch updated assignment so it shows correct checked_in = true
+	err = config.DB.Collection("room_assignments").FindOne(context.Background(), bson.M{"_id": id}).Decode(&assignment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated assignment"})
 		return
 	}
 
-	// Step 5: Create food pass request
+	// ✅ Prepare food pass request using updated assignment
 	req := models.GenerateFoodPassRequest{
 		UserID:      assignment.UserID,
 		MemberNames: assignment.GuestNames,
 		DiningHall:  assignment.DiningHallPreference,
-		StartDate:   time.Now(),
-		EndDate:     time.Now().AddDate(0, 0, 1), // Example: 1-day pass
+		StartDate:   assignment.CheckInDate,
+		EndDate:     assignment.CheckOutDate,
 	}
 
-	// Step 6: Execute food pass generation
+	// ✅ Use staff ID from token/context
+	staffIDVal, _ := c.Get("user_id")
+	staffObjID, _ := primitive.ObjectIDFromHex(fmt.Sprintf("%v", staffIDVal))
+
+	// ✅ Generate food passes using existing function
 	totalPasses, err := ExecuteFoodPassGeneration(req, staffObjID)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"assignment":             assignment,
-			"total_passes_generated": 0,
-			"warning":                fmt.Sprintf("Room checked in successfully, but FAILED to generate food passes: %v", err.Error()),
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Check-in successful, but failed to generate food passes",
+			"error":   err.Error(),
 		})
 		return
 	}
 
-	// Step 7: Success response
+	// ✅ Success response with updated data
 	c.JSON(http.StatusOK, gin.H{
+		"message":                "Room checked in and food passes generated successfully",
 		"assignment":             assignment,
 		"total_passes_generated": totalPasses,
-		"message":                "Room checked in and food passes generated successfully",
 	})
 }
 
