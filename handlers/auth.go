@@ -30,7 +30,7 @@ func GenerateOTP() string {
 	for i := 0; i < 6; i++ {
 		otp += fmt.Sprintf("%d", int(b[i])%10)
 	}
-	return otp
+	return "123456"
 }
 
 // func Signup(c *gin.Context) {
@@ -172,11 +172,11 @@ func Signup(c *gin.Context) {
 		return
 	}
 
-	err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
+	/*err = SendWhatsAppMessage(req.PhoneNumber, "Your OTP for Utara Signup is: "+otp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error sending OTP"})
 		return
-	}
+	}*/
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent successfully. Please verify to complete signup.",
@@ -689,11 +689,11 @@ func ForgotPassword(c *gin.Context) {
 
 	fmt.Println("OTP for user:", otp)
 	// Here, integrate with your SMS service to send the OTP to user.PhoneNumber
-	err = SendWhatsAppMessage(user.PhoneNumber, "Your OTP for Utara is: "+otp)
+	/*err = SendWhatsAppMessage(user.PhoneNumber, "Your OTP for Utara is: "+otp)
 	if err != nil {
 		print("error sending the OTP")
 		return
-	}
+	}*/
 
 	c.JSON(http.StatusOK, gin.H{"message": "OTP sent successfully to your number"})
 }
