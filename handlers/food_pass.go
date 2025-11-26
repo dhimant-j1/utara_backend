@@ -38,10 +38,14 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 		return 0, fmt.Errorf("invalid date range: end date is before start date")
 	}
 
-	// Normalize both dates to midnight (IST) to avoid time drift
+	// Convert dates to IST midnight
 	loc := time.FixedZone("IST", 5*60*60+30*60)
-	startDate := time.Date(req.StartDate.Year(), req.StartDate.Month(), req.StartDate.Day(), 0, 0, 0, 0, loc)
-	endDate := time.Date(req.EndDate.Year(), req.EndDate.Month(), req.EndDate.Day(), 0, 0, 0, 0, loc)
+
+	startIST := req.StartDate.In(loc)
+	endIST := req.EndDate.In(loc)
+
+	startDate := time.Date(startIST.Year(), startIST.Month(), startIST.Day(), 0, 0, 0, 0, loc)
+	endDate := time.Date(endIST.Year(), endIST.Month(), endIST.Day(), 0, 0, 0, 0, loc)
 
 	currentDate := startDate
 
@@ -53,20 +57,42 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 	var passes []models.FoodPass
 	colorCode := req.ColorCode
 
-	// Fetch dining hall category (color) once if DiningHall is provided
-	if req.DiningHall != "" {
-		var category models.FoodPassCategory
-		_ = config.DB.Collection("food_pass_categories").FindOne(context.Background(), bson.M{
-			"building_name": req.DiningHall,
-		}).Decode(&category)
+	// DEFAULT CATEGORY HANDLING
+	var category models.FoodPassCategory
+
+	// If NO category given → get the first category from DB
+	if req.DiningHall == "" {
+		err := config.DB.Collection("food_pass_categories").
+			FindOne(context.Background(), bson.M{}).
+			Decode(&category)
+
+		if err != nil {
+			return 0, fmt.Errorf("no default category found in DB: %w", err)
+		}
+
+		// Apply default
+		req.DiningHall = category.BuildingName
+		colorCode = category.ColorCode
+	} else {
+		// If DiningHall is provided → try to fetch its category
+		_ = config.DB.Collection("food_pass_categories").
+			FindOne(context.Background(), bson.M{"building_name": req.DiningHall}).
+			Decode(&category)
+
+		// If category contains color → override
 		if category.ColorCode != "" {
 			colorCode = category.ColorCode
 		}
 	}
 
-	// Generate passes for each day, each member, each meal
+	// GENERATE PASSES FOR EACH DATE / MEMBER / MEAL
+
 	for !currentDate.After(endDate) {
-		mealTypes := []models.MealType{models.Breakfast, models.Lunch, models.Dinner}
+		mealTypes := []models.MealType{
+			models.Breakfast,
+			models.Lunch,
+			models.Dinner,
+		}
 
 		for _, memberName := range req.MemberNames {
 			for _, mealType := range mealTypes {
@@ -112,7 +138,6 @@ func ExecuteFoodPassGeneration(req models.GenerateFoodPassRequest, staffID primi
 
 	return len(passes), nil
 }
-
 
 // GenerateFoodPasses is the API handler that calls the generator.
 func GenerateFoodPasses(c *gin.Context) {
