@@ -14,6 +14,7 @@ import (
 
 	"utara_backend/config"
 	"utara_backend/models"
+	"utara_backend/utils"
 )
 
 // CreateRoomRequest creates a new room request
@@ -53,6 +54,7 @@ func CreateRoomRequest(c *gin.Context) {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		Reference:       req.Reference,
+		PublicID:        utils.GeneratePublicRoomRequestID(),
 	}
 
 	result, err := config.DB.Collection("room_requests").InsertOne(context.Background(), roomRequest)
