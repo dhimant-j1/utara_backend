@@ -175,6 +175,15 @@ func GetRoomRequests(c *gin.Context) {
 				filter["user_id"] = userObjID
 			}
 		}
+		if checkoutToday := c.Query("checkout_today"); checkoutToday == "true" {
+			now := time.Now()
+			startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+			endOfDay := startOfDay.Add(24 * time.Hour)
+			filter["check_out_date"] = bson.M{
+				"$gte": startOfDay,
+				"$lt":  endOfDay,
+			}
+		}
 	}
 
 	cursor, err := config.DB.Collection("room_requests").Find(context.Background(), filter)

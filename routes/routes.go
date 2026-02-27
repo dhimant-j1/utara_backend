@@ -85,6 +85,7 @@ func SetupRoutes(r *gin.Engine) {
 			requests.GET("/", handlers.GetRoomRequests)
 			requests.GET("/:id", handlers.GetRoomRequestByID)
 			requests.PUT("/:id/process", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ProcessRoomRequest)
+			requests.PUT("/:id/admin-update", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.AdminUpdateRoomRequest)
 			requests.PUT("/:id", handlers.UpdateRoomRequest)
 			requests.DELETE("/:id", handlers.DeleteRoomRequest)
 		}
