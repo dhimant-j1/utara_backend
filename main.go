@@ -28,6 +28,9 @@ func main() {
 	// ✅ Serve static files from ./static folder (place login.html & index.html here)
 	r.Static("/static", "./static")
 
+	// ✅ Serve uploaded files (chitthi images, etc.)
+	r.Static("/uploads", "./uploads")
+
 	// ✅ Map clean routes for your pages
 	r.GET("/", func(c *gin.Context) {
 		c.File("./static/login.html")

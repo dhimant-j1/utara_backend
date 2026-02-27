@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,12 +21,90 @@ import (
 	"utara_backend/utils"
 )
 
-// CreateRoomRequest creates a new room request
+// CreateRoomRequest creates a new room request (supports multipart form with chitthi image)
 func CreateRoomRequest(c *gin.Context) {
-	var req models.CreateRoomRequestRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	contentType := c.ContentType()
+
+	var place, purpose, formName, specialRequests, reference string
+	var checkInDate, checkOutDate time.Time
+	var numberOfPeople models.PeopleCount
+	var chitthiURL string
+
+	if contentType == "application/json" {
+		// Legacy JSON support
+		var req models.CreateRoomRequestRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		place = req.Place
+		purpose = req.Purpose
+		formName = req.FormName
+		specialRequests = req.SpecialRequests
+		reference = req.Reference
+		checkInDate = req.CheckInDate
+		checkOutDate = req.CheckOutDate
+		numberOfPeople = req.NumberOfPeople
+	} else {
+		// Multipart form data (with optional chitthi image)
+		place = c.PostForm("place")
+		purpose = c.PostForm("purpose")
+		formName = c.PostForm("form_name")
+		specialRequests = c.PostForm("special_requests")
+		reference = c.PostForm("reference")
+
+		var err error
+		checkInDate, err = time.Parse(time.RFC3339, c.PostForm("check_in_date"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid check_in_date format"})
+			return
+		}
+		checkOutDate, err = time.Parse(time.RFC3339, c.PostForm("check_out_date"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid check_out_date format"})
+			return
+		}
+
+		// Parse number_of_people from JSON string or individual fields
+		peopleJSON := c.PostForm("number_of_people")
+		if peopleJSON != "" {
+			if err := json.Unmarshal([]byte(peopleJSON), &numberOfPeople); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid number_of_people format"})
+				return
+			}
+		} else {
+			male, _ := strconv.Atoi(c.PostForm("male"))
+			female, _ := strconv.Atoi(c.PostForm("female"))
+			children, _ := strconv.Atoi(c.PostForm("children"))
+			numberOfPeople = models.PeopleCount{
+				Male:     male,
+				Female:   female,
+				Children: children,
+			}
+		}
+
+		// Handle chitthi image upload
+		file, err := c.FormFile("chitthi")
+		if err == nil && file != nil {
+			// Create uploads directory if it doesn't exist
+			uploadDir := "./uploads/chitthi"
+			if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating upload directory"})
+				return
+			}
+
+			// Generate unique filename
+			ext := filepath.Ext(file.Filename)
+			filename := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), primitive.NewObjectID().Hex(), ext)
+			savePath := filepath.Join(uploadDir, filename)
+
+			if err := c.SaveUploadedFile(file, savePath); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving chitthi image"})
+				return
+			}
+
+			chitthiURL = "/uploads/chitthi/" + filename
+		}
 	}
 
 	userID, _ := c.Get("user_id")
@@ -34,27 +116,25 @@ func CreateRoomRequest(c *gin.Context) {
 		return
 	}
 
+	// Calculate total
+	numberOfPeople.Total = numberOfPeople.Male + numberOfPeople.Female + numberOfPeople.Children
+
 	roomRequest := models.RoomRequest{
-		UserID:       userObjID,
-		Name:         user.Name,
-		Place:        req.Place,
-		Purpose:      req.Purpose,
-		CheckInDate:  req.CheckInDate,
-		CheckOutDate: req.CheckOutDate,
-		FormName:     req.FormName,
-		NumberOfPeople: models.PeopleCount{
-			Male:     req.NumberOfPeople.Male,
-			Female:   req.NumberOfPeople.Female,
-			Children: req.NumberOfPeople.Children,
-			Total:    req.NumberOfPeople.Male + req.NumberOfPeople.Female + req.NumberOfPeople.Children,
-		},
-		//PreferredType:   req.PreferredType,
-		SpecialRequests: req.SpecialRequests,
+		UserID:          userObjID,
+		Name:            user.Name,
+		Place:           place,
+		Purpose:         purpose,
+		CheckInDate:     checkInDate,
+		CheckOutDate:    checkOutDate,
+		FormName:        formName,
+		NumberOfPeople:  numberOfPeople,
+		SpecialRequests: specialRequests,
 		Status:          models.StatusPending,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
-		Reference:       req.Reference,
+		Reference:       reference,
 		PublicID:        utils.GeneratePublicRoomRequestID(),
+		ChitthiURL:      chitthiURL,
 	}
 
 	result, err := config.DB.Collection("room_requests").InsertOne(context.Background(), roomRequest)

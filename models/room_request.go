@@ -40,6 +40,7 @@ type RoomRequest struct {
 	UpdatedAt       time.Time           `json:"updated_at" bson:"updated_at"`
 	Reference       string              `json:"reference" bson:"reference"`
 	PublicID        string              `json:"public_id" bson:"public_id"`
+	ChitthiURL      string              `json:"chitthi_url" bson:"chitthi_url"`
 }
 
 type RoomAssignment struct {
