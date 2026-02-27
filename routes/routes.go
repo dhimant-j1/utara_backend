@@ -70,6 +70,7 @@ func SetupRoutes(r *gin.Engine) {
 			rooms.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.DeleteRoom)
 			rooms.GET("/buildings", handlers.GetBuildings)
 			rooms.GET("/floors", handlers.GetFloors)
+			rooms.PUT("/:id/toggle-cleaning", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ToggleRoomCleaning)
 
 			//Room Category
 			rooms.POST("/create-room-category", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateRoomCategory)

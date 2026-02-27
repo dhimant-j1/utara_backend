@@ -425,10 +425,17 @@ func GetRoomStats(c *gin.Context) {
 		return
 	}
 
+	cleaningRooms, err := config.DB.Collection("rooms").CountDocuments(context.Background(), bson.M{"needs_cleaning": true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room stats"})
+		return
+	}
+
 	stats := gin.H{
 		"total_rooms":     totalRooms,
 		"occupied_rooms":  occupiedRooms,
-		"available_rooms": totalRooms - occupiedRooms,
+		"cleaning_rooms":  cleaningRooms,
+		"available_rooms": totalRooms - occupiedRooms - cleaningRooms,
 	}
 
 	c.JSON(http.StatusOK, stats)
@@ -458,6 +465,45 @@ func DeleteRoom(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Room deleted successfully"})
+}
+
+// ToggleRoomCleaning toggles the needs_cleaning status of a room
+func ToggleRoomCleaning(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
+		return
+	}
+
+	// First get the current status
+	var room models.Room
+	err = config.DB.Collection("rooms").FindOne(context.Background(), bson.M{"_id": id}).Decode(&room)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room"})
+		return
+	}
+
+	// Toggle the status
+	newStatus := !room.NeedsCleaning
+	_, err = config.DB.Collection("rooms").UpdateOne(
+		context.Background(),
+		bson.M{"_id": id},
+		bson.M{"$set": bson.M{"needs_cleaning": newStatus, "updated_at": time.Now()}},
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating room cleaning status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "Room cleaning status updated",
+		"needs_cleaning": newStatus,
+	})
 }
 
 func CreateRoomCategory(c *gin.Context) {

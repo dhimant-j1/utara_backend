@@ -49,6 +49,7 @@ type Room struct {
 	ExtraAmenities  string             `json:"extra_amenities" bson:"extra_amenities"`
 	IsVisible       bool               `json:"is_visible" bson:"is_visible"`
 	IsOccupied      bool               `json:"is_occupied" bson:"is_occupied"`
+	NeedsCleaning   bool               `json:"needs_cleaning" bson:"needs_cleaning"`
 	Building        string             `bson:"building" json:"building"`
 	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
@@ -81,6 +82,7 @@ type UpdateRoomRequest struct {
 	SofaSetQuantity *int      `json:"sofa_set_quantity"`
 	ExtraAmenities  *string   `json:"extra_amenities"`
 	IsVisible       *bool     `json:"is_visible"`
+	NeedsCleaning   *bool     `json:"needs_cleaning"`
 }
 
 type RoomCategory struct {

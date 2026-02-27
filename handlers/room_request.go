@@ -532,11 +532,11 @@ func CheckOutRoom(c *gin.Context) {
 		return
 	}
 
-	// Update room status to available
+	// Update room status to available but needs cleaning
 	_, err = config.DB.Collection("rooms").UpdateOne(
 		context.Background(),
 		bson.M{"_id": assignment.RoomID},
-		bson.M{"$set": bson.M{"is_occupied": false}},
+		bson.M{"$set": bson.M{"is_occupied": false, "needs_cleaning": true}},
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating room status"})
