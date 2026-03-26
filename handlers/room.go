@@ -263,6 +263,19 @@ func GetRooms(c *gin.Context) {
 		filter["needs_cleaning"] = needsCleaning == "true"
 	}
 
+	// Pagination parameters
+	limitStr := c.Query("limit")
+	offsetStr := c.Query("offset")
+	var limit, offset int64
+	isPaginated := false
+	if limitStr != "" {
+		limit, _ = strconv.ParseInt(limitStr, 10, 64)
+		isPaginated = true
+	}
+	if offsetStr != "" {
+		offset, _ = strconv.ParseInt(offsetStr, 10, 64)
+	}
+
 	// Get user role from context
 	userID, _ := c.Get("user_id")
 	userObjID, _ := primitive.ObjectIDFromHex(userID.(string))
@@ -278,7 +291,15 @@ func GetRooms(c *gin.Context) {
 		filter["is_visible"] = true
 	}
 
-	cursor, err := config.DB.Collection("rooms").Find(context.Background(), filter)
+	findOptions := options.Find()
+	findOptions.SetSort(bson.M{"room_number": 1}) // Default sort by room number
+
+	if isPaginated {
+		findOptions.SetLimit(limit)
+		findOptions.SetSkip(offset)
+	}
+
+	cursor, err := config.DB.Collection("rooms").Find(context.Background(), filter, findOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching rooms"})
 		return
@@ -291,7 +312,15 @@ func GetRooms(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, rooms)
+	if isPaginated {
+		total, _ := config.DB.Collection("rooms").CountDocuments(context.Background(), filter)
+		c.JSON(http.StatusOK, gin.H{
+			"total": total,
+			"data":  rooms,
+		})
+	} else {
+		c.JSON(http.StatusOK, rooms)
+	}
 }
 
 // GetRoom returns a specific room by ID
