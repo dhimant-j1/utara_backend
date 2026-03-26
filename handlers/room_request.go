@@ -186,7 +186,28 @@ func GetRoomRequests(c *gin.Context) {
 		}
 	}
 
-	cursor, err := config.DB.Collection("room_requests").Find(context.Background(), filter)
+	// Pagination parameters
+	limitStr := c.Query("limit")
+	offsetStr := c.Query("offset")
+	var limit, offset int64
+	isPaginated := false
+	if limitStr != "" {
+		limit, _ = strconv.ParseInt(limitStr, 10, 64)
+		isPaginated = true
+	}
+	if offsetStr != "" {
+		offset, _ = strconv.ParseInt(offsetStr, 10, 64)
+	}
+
+	findOptions := options.Find()
+	findOptions.SetSort(bson.M{"created_at": -1}) // LIFO order
+
+	if isPaginated {
+		findOptions.SetLimit(limit)
+		findOptions.SetSkip(offset)
+	}
+
+	cursor, err := config.DB.Collection("room_requests").Find(context.Background(), filter, findOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching room requests"})
 		return
@@ -253,7 +274,15 @@ func GetRoomRequests(c *gin.Context) {
 		requestsWithDetails = append(requestsWithDetails, requestWithDetails)
 	}
 
-	c.JSON(http.StatusOK, requestsWithDetails)
+	if isPaginated {
+		total, _ := config.DB.Collection("room_requests").CountDocuments(context.Background(), filter)
+		c.JSON(http.StatusOK, gin.H{
+			"total": total,
+			"data":  requestsWithDetails,
+		})
+	} else {
+		c.JSON(http.StatusOK, requestsWithDetails)
+	}
 }
 
 // ProcessRoomRequest processes (approve/reject) a room request
