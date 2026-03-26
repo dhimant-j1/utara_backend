@@ -311,6 +311,8 @@ func ProcessRoomRequest(c *gin.Context) {
 			AssignedAt:   time.Now(),
 			CheckedIn:    false,
 			CheckedOut:   false,
+			DepositPaid:  req.DepositPaid,
+			IsFOC:        req.IsFOC,
 		}
 
 		_, err := config.DB.Collection("room_assignments").InsertOne(context.Background(), assignment)

@@ -58,6 +58,8 @@ type RoomAssignment struct {
 	CheckedInAt          *time.Time         `json:"checked_in_at,omitempty" bson:"checked_in_at,omitempty"`
 	CheckedOut           bool               `json:"checked_out" bson:"checked_out"`
 	CheckedOutAt         *time.Time         `json:"checked_out_at,omitempty" bson:"checked_out_at,omitempty"`
+	DepositPaid          *int               `json:"deposit_paid,omitempty" bson:"deposit_paid,omitempty"`
+	IsFOC                *bool              `json:"is_foc,omitempty" bson:"is_foc,omitempty"`
 }
 
 type RoomAssignmentWrapper struct {
@@ -79,8 +81,10 @@ type CreateRoomRequestRequest struct {
 }
 
 type ProcessRoomRequestRequest struct {
-	Status RequestStatus       `json:"status" binding:"required"`
-	RoomID *primitive.ObjectID `json:"room_id"`
+	Status      RequestStatus       `json:"status" binding:"required"`
+	RoomID      *primitive.ObjectID `json:"room_id"`
+	DepositPaid *int                `json:"deposit_paid"`
+	IsFOC       *bool               `json:"is_foc"`
 }
 
 // type RoomAssignmentRequest struct {
