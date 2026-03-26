@@ -259,6 +259,9 @@ func GetRooms(c *gin.Context) {
 	if isOccupied := c.Query("is_occupied"); isOccupied != "" {
 		filter["is_occupied"] = isOccupied == "true"
 	}
+	if needsCleaning := c.Query("needs_cleaning"); needsCleaning != "" {
+		filter["needs_cleaning"] = needsCleaning == "true"
+	}
 
 	// Get user role from context
 	userID, _ := c.Get("user_id")
