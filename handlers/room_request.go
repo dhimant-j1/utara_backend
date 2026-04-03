@@ -144,6 +144,22 @@ func CreateRoomRequest(c *gin.Context) {
 	}
 
 	roomRequest.ID = result.InsertedID.(primitive.ObjectID)
+
+	// Update user's booking stats
+	now := time.Now()
+	_, err = config.DB.Collection("users").UpdateOne(
+		context.Background(),
+		bson.M{"_id": userObjID},
+		bson.M{
+			"$inc": bson.M{"total_bookings": 1},
+			"$set": bson.M{"last_booking_at": now},
+		},
+	)
+	if err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Error updating user booking stats: %v\n", err)
+	}
+
 	c.JSON(http.StatusCreated, roomRequest)
 }
 

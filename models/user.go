@@ -15,20 +15,22 @@ const (
 )
 
 type User struct {
-	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	UserName    string             `json:"user_name" bson:"user_name"`
-	Email       string             `json:"email" bson:"email"`
-	Password    string             `json:"-" bson:"password"`
-	Name        string             `json:"name" bson:"name"`
-	Role        UserRole           `json:"role" bson:"role"`
-	Gaam        string             `json:"gaam" bson:"gaam"`
-	IsImportant bool               `json:"is_important" bson:"is_important"`
-	PhoneNumber string             `json:"phone_number" bson:"phone_number"`
-	UserType    string             `json:"user_type" bson:"user_type"`
-	Otp         string             `json:"otp,omitempty" bson:"otp,omitempty"`
-	OtpExpiry   time.Time          `json:"otp_expiry,omitempty" bson:"otp_expiry,omitempty"`
-	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	UserName       string             `json:"user_name" bson:"user_name"`
+	Email          string             `json:"email" bson:"email"`
+	Password       string             `json:"-" bson:"password"`
+	Name           string             `json:"name" bson:"name"`
+	Role           UserRole           `json:"role" bson:"role"`
+	Gaam           string             `json:"gaam" bson:"gaam"`
+	IsImportant    bool               `json:"is_important" bson:"is_important"`
+	PhoneNumber    string             `json:"phone_number" bson:"phone_number"`
+	UserType       string             `json:"user_type" bson:"user_type"`
+	Otp            string             `json:"otp,omitempty" bson:"otp,omitempty"`
+	OtpExpiry      time.Time          `json:"otp_expiry,omitempty" bson:"otp_expiry,omitempty"`
+	TotalBookings  int                `json:"total_bookings" bson:"total_bookings"`
+	LastBookingAt  *time.Time         `json:"last_booking_at,omitempty" bson:"last_booking_at,omitempty"`
+	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
 type LoginRequest struct {
