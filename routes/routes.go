@@ -113,5 +113,19 @@ func SetupRoutes(r *gin.Engine) {
 			foodPasses.PUT("/update-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateFoodPassCategory)
 			foodPasses.DELETE("/delete-pass-category/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteFoodPassCategory)
 		}
+
+		// Payment routes
+		payments := protected.Group("/payments")
+		{
+			payments.POST("/create", handlers.CreatePayment)
+			payments.POST("/verify", handlers.VerifyPayment)
+			payments.GET("/my-payments", handlers.GetUserPayments)
+			payments.GET("/:id", handlers.GetPaymentByID)
+			payments.GET("/", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetAllPayments)
+			payments.PUT("/:id/status", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdatePaymentStatus)
+		}
 	}
+
+	// Public webhook route (no auth required - called by Razorpay)
+	r.POST("/webhooks/razorpay", handlers.HandleWebhook)
 }
