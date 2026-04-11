@@ -27,15 +27,6 @@ func getRazorpayCredentials() (keyID, keySecret string) {
 	return os.Getenv("RAZORPAY_KEY_ID"), os.Getenv("RAZORPAY_KEY_SECRET")
 }
 
-// getRazorpayAuth returns the base64 encoded auth string
-func getRazorpayAuth() string {
-	keyID, keySecret := getRazorpayCredentials()
-	auth := fmt.Sprintf("%s:%s", keyID, keySecret)
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
-import "encoding/base64"
-
 // CreatePayment creates a new Razorpay order and stores payment record
 func CreatePayment(c *gin.Context) {
 	var req models.CreatePaymentRequest
@@ -57,10 +48,9 @@ func CreatePayment(c *gin.Context) {
 		return
 	}
 
-	// Create Razorpay order
 	razorpayOrder, err := createRazorpayOrder(req.Amount, req.Currency, req.Description, req.Notes)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment order"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment order: " + err.Error()})
 		return
 	}
 
@@ -325,13 +315,17 @@ func GetAllPayments(c *gin.Context) {
 	
 	if skipStr := c.Query("skip"); skipStr != "" {
 		if val, err := primitive.ParseDecimal128(skipStr); err == nil {
-			skip = int(val.BigInt().Int64())
+			if bi, _, err := val.BigInt(); err == nil {
+				skip = int(bi.Int64())
+			}
 		}
 	}
 	
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if val, err := primitive.ParseDecimal128(limitStr); err == nil {
-			limit = int(val.BigInt().Int64())
+			if bi, _, err := val.BigInt(); err == nil {
+				limit = int(bi.Int64())
+			}
 		}
 	}
 
@@ -471,4 +465,156 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+// ProcessRefund processes a refund for a payment
+func ProcessRefund(c *gin.Context) {
+	var req models.RefundRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get payment record
+	paymentID, err := primitive.ObjectIDFromHex(req.PaymentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
+		return
+	}
+
+	var payment models.Payment
+	err = config.DB.Collection("payments").FindOne(context.Background(), bson.M{"_id": paymentID}).Decode(&payment)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Payment not found"})
+		return
+	}
+
+	// Check if payment can be refunded
+	if payment.Status != models.PaymentStatusPaid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment cannot be refunded - not in paid status"})
+		return
+	}
+
+	if payment.RazorpayPaymentID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No Razorpay payment ID found"})
+		return
+	}
+
+	// Determine refund amount
+	refundAmount := req.Amount
+	if refundAmount == 0 {
+		refundAmount = payment.Amount // Full refund
+	}
+
+	// Create refund in Razorpay
+	refundResult, err := createRazorpayRefund(payment.RazorpayPaymentID, refundAmount, req.Reason)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process refund: " + err.Error()})
+		return
+	}
+
+	// Update payment record
+	filter := bson.M{"_id": paymentID}
+	update := bson.M{
+		"$set": bson.M{
+			"status":          models.PaymentStatusRefunded,
+			"refund_id":       refundResult["id"],
+			"refunded_amount": refundAmount,
+			"updated_at":      time.Now(),
+		},
+	}
+
+	_, err = config.DB.Collection("payments").UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update payment record"})
+		return
+	}
+
+	response := models.RefundResponse{
+		RefundID:   refundResult["id"].(string),
+		PaymentID:  req.PaymentID,
+		Amount:     refundAmount,
+		Status:     refundResult["status"].(string),
+		ReceiptURL: "",
+	}
+
+	// Generate receipt URL if needed
+	if receiptURL, ok := refundResult["receipt_url"].(string); ok {
+		response.ReceiptURL = receiptURL
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// createRazorpayRefund creates a refund on Razorpay
+func createRazorpayRefund(paymentID string, amount int, reason string) (map[string]interface{}, error) {
+	keyID, keySecret := getRazorpayCredentials()
+
+	payload := map[string]interface{}{
+		"amount": amount,
+	}
+	if reason != "" {
+		payload["notes"] = map[string]string{"reason": reason}
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("https://api.razorpay.com/v1/payments/%s/refund", paymentID), bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(keyID, keySecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("razorpay API error: %s", string(body))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetPaymentByRequestID returns payment information for a room request
+func GetPaymentByRequestID(c *gin.Context) {
+	requestID := c.Param("request_id")
+	
+	reqObjID, err := primitive.ObjectIDFromHex(requestID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request ID"})
+		return
+	}
+
+	var payment models.Payment
+	err = config.DB.Collection("payments").FindOne(
+		context.Background(),
+		bson.M{"request_id": reqObjID},
+		options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}}),
+	).Decode(&payment)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No payment found for this request"})
+		return
+	}
+
+	c.JSON(http.StatusOK, payment)
 }

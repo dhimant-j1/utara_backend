@@ -119,11 +119,35 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			payments.POST("/create", handlers.CreatePayment)
 			payments.POST("/verify", handlers.VerifyPayment)
+			payments.POST("/refund", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.ProcessRefund)
 			payments.GET("/my-payments", handlers.GetUserPayments)
 			payments.GET("/:id", handlers.GetPaymentByID)
+			payments.GET("/request/:request_id", handlers.GetPaymentByRequestID)
 			payments.GET("/", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetAllPayments)
 			payments.PUT("/:id/status", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.UpdatePaymentStatus)
 		}
+
+		// Room type cost routes (admin only)
+		roomTypeCosts := protected.Group("/room-type-costs")
+		{
+			roomTypeCosts.GET("/", handlers.GetRoomTypeCosts)
+			roomTypeCosts.GET("/:type", handlers.GetRoomTypeCost)
+			roomTypeCosts.POST("/initialize", middleware.RequireRole(models.RoleSuperAdmin), handlers.InitializeRoomTypeCosts)
+			roomTypeCosts.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateRoomTypeCost)
+		}
+
+		// User type config routes (admin only)
+		userTypeConfigs := protected.Group("/user-type-configs")
+		{
+			userTypeConfigs.GET("/", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetUserTypeConfigs)
+			userTypeConfigs.GET("/:type", middleware.RequireRole(models.RoleSuperAdmin, models.RoleStaff), handlers.GetUserTypeConfig)
+			userTypeConfigs.POST("/", middleware.RequireRole(models.RoleSuperAdmin), handlers.CreateUserTypeConfig)
+			userTypeConfigs.PUT("/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.UpdateUserTypeConfig)
+			userTypeConfigs.DELETE("/:id", middleware.RequireRole(models.RoleSuperAdmin), handlers.DeleteUserTypeConfig)
+		}
+
+		// Deposit check route (public - for checking if deposit required)
+		protected.GET("/check-deposit", handlers.CheckUserRequiresDeposit)
 	}
 
 	// Public webhook route (no auth required - called by Razorpay)

@@ -74,10 +74,10 @@ type PaymentResponse struct {
 // RazorpayOrderResponse represents Razorpay order creation response
 type RazorpayOrderResponse struct {
 	ID         string            `json:"id"`
-	Entity     string            `json:"entity"`
-	Amount     int               `json:"amount"`
-	Currency   string            `json:"currency"`
-	Status     string            `json:"status"`
-	Notes      map[string]string `json:"notes"`
-	CreatedAt  int64             `json:"created_at"`
+	Entity     string      `json:"entity"`
+	Amount     int         `json:"amount"`
+	Currency   string      `json:"currency"`
+	Status     string      `json:"status"`
+	Notes      interface{} `json:"notes"`
+	CreatedAt  int64       `json:"created_at"`
 }

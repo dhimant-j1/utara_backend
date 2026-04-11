@@ -33,6 +33,17 @@ type User struct {
 	UpdatedAt      time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
+// UserTypeConfig stores deposit configuration for each customer category/type
+type UserTypeConfig struct {
+	ID            primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	UserType      string             `json:"user_type" bson:"user_type"`           // e.g., "Plus", "Regular", "VIP"
+	DepositAmount int                `json:"deposit_amount" bson:"deposit_amount"` // Amount in paise (0 for free/FOC)
+	IsFOC         bool               `json:"is_foc" bson:"is_foc"`                 // Free of cost - no deposit required
+	Description   string             `json:"description" bson:"description"`
+	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at" bson:"updated_at"`
+}
+
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`

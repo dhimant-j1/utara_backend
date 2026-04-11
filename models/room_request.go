@@ -60,6 +60,30 @@ type RoomAssignment struct {
 	CheckedOutAt         *time.Time         `json:"checked_out_at,omitempty" bson:"checked_out_at,omitempty"`
 	DepositPaid          *int               `json:"deposit_paid,omitempty" bson:"deposit_paid,omitempty"`
 	IsFOC                *bool              `json:"is_foc,omitempty" bson:"is_foc,omitempty"`
+	PaymentID            *primitive.ObjectID `json:"payment_id,omitempty" bson:"payment_id,omitempty"` // Link to payment record
+}
+
+// RoomRequestWithPayment extends RoomRequest with payment details for API responses
+type RoomRequestWithPayment struct {
+	RoomRequest
+	Payment    *Payment `json:"payment,omitempty" bson:"payment,omitempty"`
+	Assignment *RoomAssignment `json:"assignment,omitempty" bson:"assignment,omitempty"`
+}
+
+// RefundRequest represents a refund request for a payment
+type RefundRequest struct {
+	PaymentID string `json:"payment_id" binding:"required"`
+	Amount    int    `json:"amount"` // Amount in paise (0 or omitted for full refund)
+	Reason    string `json:"reason"`
+}
+
+// RefundResponse represents the response from a refund operation
+type RefundResponse struct {
+	RefundID       string `json:"refund_id"`
+	PaymentID      string `json:"payment_id"`
+	Amount         int    `json:"amount"`
+	Status         string `json:"status"`
+	ReceiptURL     string `json:"receipt_url,omitempty"`
 }
 
 type RoomAssignmentWrapper struct {

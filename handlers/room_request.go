@@ -242,6 +242,7 @@ func GetRoomRequests(c *gin.Context) {
 		User       *models.User           `json:"user,omitempty"`
 		Room       *models.Room           `json:"room,omitempty"`
 		Assignment *models.RoomAssignment `json:"assignment,omitempty"`
+		Payment    *models.Payment        `json:"payment,omitempty"`
 	}
 
 	var requestsWithDetails []RoomRequestWithDetails
@@ -255,14 +256,14 @@ func GetRoomRequests(c *gin.Context) {
 			bson.M{"_id": request.UserID},
 		).Decode(&userDetails)
 
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user details"})
-			return
-		}
-
 		requestWithDetails := RoomRequestWithDetails{
 			RoomRequest: request,
-			User:        &userDetails,
+		}
+
+		if err == nil {
+			requestWithDetails.User = &userDetails
+		} else {
+			fmt.Printf("Warning: User %v not found for request %v\n", request.UserID, request.ID)
 		}
 
 		// Find assignment for this request
@@ -285,6 +286,18 @@ func GetRoomRequests(c *gin.Context) {
 			if err == nil {
 				requestWithDetails.Room = &room
 			}
+		}
+
+		// Find payment for this request
+		var payment models.Payment
+		err = config.DB.Collection("payments").FindOne(
+			context.Background(),
+			bson.M{"request_id": request.ID},
+			options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}}),
+		).Decode(&payment)
+
+		if err == nil {
+			requestWithDetails.Payment = &payment
 		}
 
 		requestsWithDetails = append(requestsWithDetails, requestWithDetails)
@@ -375,6 +388,36 @@ func ProcessRoomRequest(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating room status"})
 			return
+		}
+	}
+
+	// If request is rejected and there's a payment, mark it for refund
+	if req.Status == models.StatusRejected {
+		// Find any payment associated with this request
+		var payment models.Payment
+		err := config.DB.Collection("payments").FindOne(
+			context.Background(),
+			bson.M{
+				"request_id": id,
+				"status":     models.PaymentStatusPaid,
+			},
+		).Decode(&payment)
+
+		if err == nil && payment.ID != primitive.NilObjectID {
+			// Update payment status to indicate pending refund
+			config.DB.Collection("payments").UpdateOne(
+				context.Background(),
+				bson.M{"_id": payment.ID},
+				bson.M{
+					"$set": bson.M{
+						"notes": map[string]string{
+							"refund_pending": "true",
+							"refund_reason":  "Room request rejected",
+						},
+						"updated_at": time.Now(),
+					},
+				},
+			)
 		}
 	}
 

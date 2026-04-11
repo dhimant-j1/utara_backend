@@ -54,6 +54,7 @@ func GetRoomRequestByID(c *gin.Context) {
 		User       *models.User           `json:"user,omitempty"`
 		Room       *models.Room           `json:"room,omitempty"`
 		Assignment *models.RoomAssignment `json:"assignment,omitempty"`
+		Payment    *models.Payment        `json:"payment,omitempty"`
 	}
 
 	// Get user details
@@ -91,6 +92,17 @@ func GetRoomRequestByID(c *gin.Context) {
 		if err == nil {
 			requestWithDetails.Room = &room
 		}
+	}
+
+	// Find payment for this request
+	var payment models.Payment
+	err = config.DB.Collection("payments").FindOne(
+		context.Background(),
+		bson.M{"request_id": request.ID},
+	).Decode(&payment)
+
+	if err == nil {
+		requestWithDetails.Payment = &payment
 	}
 
 	c.JSON(http.StatusOK, requestWithDetails)

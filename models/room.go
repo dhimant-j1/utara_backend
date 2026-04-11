@@ -93,3 +93,28 @@ type RoomCategory struct {
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }
+
+// RoomTypeCost stores the deposit cost for each room type (Sarju, Shri Hari, etc.)
+type RoomTypeCost struct {
+	ID            primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	RoomType      RoomType           `json:"room_type" bson:"room_type"`           // SARJU, SHREEHARI, etc.
+	DepositAmount int                `json:"deposit_amount" bson:"deposit_amount"` // Amount in paise
+	Currency      string             `json:"currency" bson:"currency"`
+	Description   string             `json:"description" bson:"description"`
+	IsActive      bool               `json:"is_active" bson:"is_active"`
+	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at" bson:"updated_at"`
+}
+
+// GetDefaultRoomTypeCosts returns default deposit amounts for each room type
+func GetDefaultRoomTypeCosts() []RoomTypeCost {
+	now := time.Now()
+	return []RoomTypeCost{
+		{RoomType: ShreeHariPlus, DepositAmount: 50000, Currency: "INR", Description: "Shree Hari Plus rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		{RoomType: ShreeHari, DepositAmount: 30000, Currency: "INR", Description: "Shree Hari rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		{RoomType: SarjuPlus, DepositAmount: 50000, Currency: "INR", Description: "Sarju Plus rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		{RoomType: Sarju, DepositAmount: 30000, Currency: "INR", Description: "Sarju rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		{RoomType: NeelkanthPlus, DepositAmount: 50000, Currency: "INR", Description: "Neelkanth Plus rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		{RoomType: Neelkanth, DepositAmount: 30000, Currency: "INR", Description: "Neelkanth rooms", IsActive: true, CreatedAt: now, UpdatedAt: now},
+	}
+}
