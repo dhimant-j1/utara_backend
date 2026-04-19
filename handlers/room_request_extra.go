@@ -107,6 +107,11 @@ func AdminUpdateRoomRequest(c *gin.Context) {
 		Purpose         *string             `json:"purpose"`
 		Reference       *string             `json:"reference"`
 		SpecialRequests *string             `json:"special_requests"`
+		FormPhone       *string             `json:"form_phone"`
+		Country         *string             `json:"country"`
+		State           *string             `json:"state"`
+		City            *string             `json:"city"`
+		VehicleNumber   *string             `json:"vehicle_number"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -140,6 +145,21 @@ func AdminUpdateRoomRequest(c *gin.Context) {
 	}
 	if req.SpecialRequests != nil {
 		updateFields["special_requests"] = *req.SpecialRequests
+	}
+	if req.FormPhone != nil {
+		updateFields["form_phone"] = *req.FormPhone
+	}
+	if req.Country != nil {
+		updateFields["country"] = *req.Country
+	}
+	if req.State != nil {
+		updateFields["state"] = *req.State
+	}
+	if req.City != nil {
+		updateFields["city"] = *req.City
+	}
+	if req.VehicleNumber != nil {
+		updateFields["vehicle_number"] = *req.VehicleNumber
 	}
 
 	filter := bson.M{"_id": id}

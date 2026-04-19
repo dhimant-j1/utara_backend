@@ -19,3 +19,16 @@ func GeneratePublicRoomRequestID() string {
 	}
 	return fmt.Sprintf("REQ-%s-%s", timestamp, string(b))
 }
+
+// GenerateApprovalID generates a unique approval ID for approved room requests
+// Format: yy-<unique6alphanumericid> (e.g., 26-A3B9C1)
+func GenerateApprovalID() string {
+	year := time.Now().Format("06") // Last 2 digits of year
+	const allowedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 6)
+	for i := range b {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(allowedChars))))
+		b[i] = allowedChars[n.Int64()]
+	}
+	return fmt.Sprintf("%s-%s", year, string(b))
+}

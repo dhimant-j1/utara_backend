@@ -28,6 +28,11 @@ type RoomRequest struct {
 	UserID         primitive.ObjectID `json:"user_id" bson:"user_id"`
 	Name           string             `json:"name" bson:"name"`
 	FormName       string             `json:"form_name" bson:"form_name"`
+	FormPhone      string             `json:"form_phone" bson:"form_phone"`
+	Country        string             `json:"country" bson:"country"`
+	State          string             `json:"state" bson:"state"`
+	City           string             `json:"city" bson:"city"`
+	VehicleNumber  string             `json:"vehicle_number" bson:"vehicle_number"`
 	CheckInDate    time.Time          `json:"check_in_date" bson:"check_in_date"`
 	CheckOutDate   time.Time          `json:"check_out_date" bson:"check_out_date"`
 	NumberOfPeople PeopleCount        `json:"number_of_people" bson:"number_of_people"`
@@ -40,6 +45,7 @@ type RoomRequest struct {
 	UpdatedAt       time.Time           `json:"updated_at" bson:"updated_at"`
 	Reference       string              `json:"reference" bson:"reference"`
 	PublicID        string              `json:"public_id" bson:"public_id"`
+	ApprovalID      string              `json:"approval_id" bson:"approval_id"`
 	ChitthiURL      string              `json:"chitthi_url" bson:"chitthi_url"`
 }
 
@@ -73,6 +79,11 @@ type CreateRoomRequestRequest struct {
 	CheckOutDate   time.Time   `json:"check_out_date" binding:"required"`
 	NumberOfPeople PeopleCount `json:"number_of_people" binding:"required"`
 	FormName       string      `json:"form_name"`
+	FormPhone      string      `json:"form_phone"`
+	Country        string      `json:"country"`
+	State          string      `json:"state"`
+	City           string      `json:"city"`
+	VehicleNumber  string      `json:"vehicle_number"`
 	//PreferredType   RoomType    `json:"preferred_type" binding:"required"`
 	Purpose         string `json:"purpose" binding:"required"`
 	Place           string `json:"place" binding:"required"`

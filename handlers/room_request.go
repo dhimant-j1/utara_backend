@@ -25,7 +25,7 @@ import (
 func CreateRoomRequest(c *gin.Context) {
 	contentType := c.ContentType()
 
-	var place, purpose, formName, specialRequests, reference string
+	var place, purpose, formName, formPhone, specialRequests, reference, country, state, city, vehicleNumber string
 	var checkInDate, checkOutDate time.Time
 	var numberOfPeople models.PeopleCount
 	var chitthiURL string
@@ -40,6 +40,11 @@ func CreateRoomRequest(c *gin.Context) {
 		place = req.Place
 		purpose = req.Purpose
 		formName = req.FormName
+		formPhone = req.FormPhone
+		country = req.Country
+		state = req.State
+		city = req.City
+		vehicleNumber = req.VehicleNumber
 		specialRequests = req.SpecialRequests
 		reference = req.Reference
 		checkInDate = req.CheckInDate
@@ -50,6 +55,11 @@ func CreateRoomRequest(c *gin.Context) {
 		place = c.PostForm("place")
 		purpose = c.PostForm("purpose")
 		formName = c.PostForm("form_name")
+		formPhone = c.PostForm("form_phone")
+		country = c.PostForm("country")
+		state = c.PostForm("state")
+		city = c.PostForm("city")
+		vehicleNumber = c.PostForm("vehicle_number")
 		specialRequests = c.PostForm("special_requests")
 		reference = c.PostForm("reference")
 
@@ -127,6 +137,11 @@ func CreateRoomRequest(c *gin.Context) {
 		CheckInDate:     checkInDate,
 		CheckOutDate:    checkOutDate,
 		FormName:        formName,
+		FormPhone:       formPhone,
+		Country:         country,
+		State:           state,
+		City:            city,
+		VehicleNumber:   vehicleNumber,
 		NumberOfPeople:  numberOfPeople,
 		SpecialRequests: specialRequests,
 		Status:          models.StatusPending,
@@ -255,14 +270,14 @@ func GetRoomRequests(c *gin.Context) {
 			bson.M{"_id": request.UserID},
 		).Decode(&userDetails)
 
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching user details"})
-			return
-		}
-
 		requestWithDetails := RoomRequestWithDetails{
 			RoomRequest: request,
-			User:        &userDetails,
+		}
+
+		if err == nil {
+			requestWithDetails.User = &userDetails
+		} else if err != mongo.ErrNoDocuments {
+			fmt.Printf("Error fetching user details for user_id %s: %v\n", request.UserID.Hex(), err)
 		}
 
 		// Find assignment for this request
@@ -342,6 +357,17 @@ func ProcessRoomRequest(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing room request"})
 		return
+	}
+
+	// Generate approval ID if approving for the first time
+	if req.Status == models.StatusApproved && roomRequest.ApprovalID == "" {
+		approvalID := utils.GenerateApprovalID()
+		_, _ = config.DB.Collection("room_requests").UpdateOne(
+			context.Background(),
+			bson.M{"_id": id},
+			bson.M{"$set": bson.M{"approval_id": approvalID}},
+		)
+		roomRequest.ApprovalID = approvalID
 	}
 
 	// If request is approved and room ID is provided, create room assignment
